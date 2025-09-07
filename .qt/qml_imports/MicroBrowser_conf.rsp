@@ -1,0 +1,14 @@
+-rootPath
+/Users/colin.clark/Dev/answer
+-cmake-output
+-output-file
+/Users/colin.clark/Dev/answer/.qt/qml_imports/MicroBrowser_conf.cmake
+-importPath
+/Users/colin.clark/Dev/answer/MicroBrowser
+-importPath
+/Users/colin.clark/Dev/answer
+-importPath
+/opt/homebrew/share/qt/qml
+-qrcFiles
+/Users/colin.clark/Dev/answer/.qt/rcc/qmake_MicroBrowser.qrc
+/Users/colin.clark/Dev/answer/.qt/rcc/MicroBrowser_raw_qml_0.qrc

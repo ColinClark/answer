@@ -1,0 +1,125 @@
+# Product Requirements Document - MicroBrowser Insights & Chat Panel
+
+## 1. Overview
+
+We are extending the MicroBrowser (Qt WebEngine shell) with an Insights & Chat Panel that combines page text analysis, LLM-powered theming, Statista MCP search, and a real-time research chat assistant. The panel enhances browsing by surfacing relevant Statista data, contextual citations, and guided research flows without leaving the page.
+
+---
+
+## 2. Objectives
+• Enable researchers, analysts, and business users to instantly discover relevant Statista content while browsing external sites.
+• Provide a streaming LLM-powered copilot for research workflow support, including clarifying goals, producing plans, surfacing data, and maintaining open questions.
+• Increase Statista product stickiness by embedding live data access and chat directly into the browsing experience.
+
+---
+
+## 3. Scope
+
+### In-Scope
+• Right-side Insights panel in MicroBrowser with:
+  • Page text extraction (document.body.innerText).
+  • LLM-powered theme extraction via MCP (statista.themes.extract).
+  • Related items search via MCP (statista.search).
+  • Streaming chat with partial token updates, citations, and follow-up queries via MCP (statista.llm.chat.stream).
+• UI elements:
+  • Toggle between LLM vs Fast (naive) theme extraction.
+  • Related item list with "Open" and "Open in new tab" actions.
+  • ChatView with:
+    • Streaming assistant replies.
+    • Clickable citations (open in new tab).
+    • Suggested follow-up queries (click to send or run FIFO queue).
+• Session persistence of tabs and profile data (cookies, cache).
+• Configuration via environment variables:
+  • STATISTA_MCP_ENDPOINT
+  • STATISTA_MCP_API_KEY
+
+### Out of Scope
+• Full Chrome extension API compatibility (CEF path).
+• Advanced tab/session management beyond single-window.
+• Offline mode or local-only processing.
+• Multi-user account integration.
+
+---
+
+## 4. Users & Use Cases
+
+### Primary Users
+• Research analysts: exploring topics online, need to validate and enrich with Statista data.
+• Business decision-makers: want fast answers with credible sources.
+• Internal Statista teams: dogfood environment for MCP APIs and research workflows.
+
+### Core Use Cases
+1. Analyst reads a news article → opens Insights → sees extracted themes → Statista charts/studies suggested.
+2. User selects a passage → sends to chat → copilot produces research plan, cites Statista data, suggests next queries.
+3. Chat streams tokens live, with clickable Statista sources that can open in new tabs.
+4. Assistant generates a queue of follow-up queries; user runs them sequentially.
+
+---
+
+## 5. Functional Requirements
+
+### 5.1 Insights Panel
+• Toggle to open/close.
+• Extract page text → analyze via MCP LLM → derive themes.
+• Display chips of top themes.
+• Call statista.search with themes → show related items.
+• Item actions: Open externally | Open in new tab.
+
+### 5.2 Chat Panel
+• Accept user message.
+• Send conversation + context to MCP (statista.llm.chat.stream).
+• Render streaming assistant reply token-by-token.
+• Capture citation events → display clickable source chips.
+• Capture followups → show as queued queries.
+• Support "Run next ▶" to auto-execute queue FIFO.
+• Maintain conversation memory in session.
+
+### 5.3 Data Flow
+1. Page text → MCP LLM → Themes.
+2. Themes → MCP search → Related items.
+3. User prompt + context → MCP chat → Streaming reply, citations, followups.
+4. Citations and items → Open in new tab or external browser.
+
+---
+
+## 6. Non-Functional Requirements
+• Performance: Streaming updates < 200ms latency between token batches.
+• Reliability: Graceful error handling if MCP endpoint unavailable.
+• Security: API key stored only in env vars; no persistent logs of queries.
+• Cross-platform: macOS, Linux, Windows (Qt 6.5+).
+
+---
+
+## 7. Dependencies
+• Qt 6.5+ (Quick, WebEngine, Network).
+• MCP gateway for Statista endpoints:
+  • statista.themes.extract
+  • statista.search
+  • statista.llm.chat.stream
+
+---
+
+## 8. Success Metrics
+• Engagement: % of sessions where Insights panel opened.
+• Retention: Average session length vs baseline.
+• Data impact: # of Statista items clicked from panel.
+• Chat adoption: # of chat turns per session.
+• Follow-up utilization: % of follow-up queries run.
+
+---
+
+## 9. Future Enhancements
+• Notes subpanel: auto-collect "Facts" & "Open Questions"; export to Markdown/PDF.
+• Multi-tab chat per page.
+• User accounts with personalized history.
+• CEF/extension path for Chrome-native plugin.
+
+---
+
+## 10. Risks & Mitigations
+• Risk: MCP latency too high → poor UX.
+  • Mitigation: Streaming responses, fallback to naive analysis.
+• Risk: Users confused by panel complexity.
+  • Mitigation: Onboarding tooltips, minimal UI first.
+• Risk: Citation links not mapping 1:1 to Statista content.
+  • Mitigation: Standardize MCP schema for search + chat.

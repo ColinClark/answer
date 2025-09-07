@@ -1,0 +1,52 @@
+# Environment files
+.env
+.env.local
+
+# Build directories
+build/
+build-debug/
+build-release/
+dist/
+
+# CMake files
+CMakeFiles/
+CMakeCache.txt
+cmake_install.cmake
+Makefile.cmake
+compile_commands.json
+*.cmake
+
+# Qt generated files
+*.moc
+moc_*.cpp
+moc_*.h
+*.rcc
+qrc_*.cpp
+ui_*.h
+*.qmlc
+*.jsc
+.qmake.stash
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Executables
+MicroBrowser
+MicroBrowser.exe
+*.app/
+
+# Debug files
+*.dSYM/
+*.pdb
+*.ilk
+
+# Package files
+*.dmg
+*.AppImage
+*.deb
+*.rpm

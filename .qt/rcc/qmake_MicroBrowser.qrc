@@ -1,0 +1,6 @@
+<RCC>
+  <qresource prefix="/MicroBrowser">
+    <file alias="qmldir">/Users/colin.clark/Dev/answer/MicroBrowser/qmldir</file>
+  </qresource>
+</RCC>
+

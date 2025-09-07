@@ -1,0 +1,9 @@
+<RCC>
+  <qresource prefix="/MicroBrowser/">
+    <file alias="qml/Main.qml">/Users/colin.clark/Dev/answer/qml/Main.qml</file>
+    <file alias="qml/TabWebView.qml">/Users/colin.clark/Dev/answer/qml/TabWebView.qml</file>
+    <file alias="qml/InsightsPanel.qml">/Users/colin.clark/Dev/answer/qml/InsightsPanel.qml</file>
+    <file alias="qml/ChatView.qml">/Users/colin.clark/Dev/answer/qml/ChatView.qml</file>
+  </qresource>
+</RCC>
+
