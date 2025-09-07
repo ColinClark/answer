@@ -13,6 +13,7 @@ Window {
 
     property int activeIndex: 0
     property string currentTitle: (tabStack.currentItem && tabStack.currentItem.title) ? tabStack.currentItem.title : ""
+    property bool insightsPanelVisible: false
     
     ListModel {
         id: tabsModel
@@ -28,6 +29,18 @@ Window {
         
         activeIndex = Math.max(0, Math.min(session.loadActiveIndex(), tabsModel.count-1))
         tabBar.currentIndex = activeIndex
+        
+        // Connect analyzer and chat signals
+        analyzer.themesReady.connect((themes) => insightContent.setThemes(themes))
+        analyzer.resultsReady.connect((items) => insightContent.setItems(items))
+        // Don't show analyzer errors - just display empty themes if extraction fails
+
+        chat.messagesChanged.connect(() => insightContent.setChatMessages(chat.messages))
+        chat.partialUpdated.connect(() => insightContent.updateLastMessage(chat.messages))
+        chat.streamingFinished.connect(() => insightContent.finishStreaming(chat.messages))
+        chat.citationsUpdated.connect((cites) => insightContent.addCitations(cites))
+        chat.followupsChanged.connect(() => insightContent.setFollowups(chat.followups))
+        chat.error.connect((m) => insightContent.setChatError(m))
     }
     
     function createTab(url) {
@@ -57,7 +70,7 @@ Window {
             spacing: 6; height: 38
             Button { text: "＋ Tab"; onClicked: addTab("https://example.com") }
             Button { text: downloadsPanel.opened ? "Downloads ✓" : "Downloads"; onClicked: { if (downloadsPanel.opened) downloadsPanel.close(); else downloadsPanel.open(); } }
-            Button { text: insightsPanel.opened ? "Insights ✓" : "Insights"; onClicked: toggleInsights() }
+            Button { text: insightsPanelVisible ? "Insights ✓" : "Insights"; onClicked: toggleInsights() }
             Item { Layout.fillWidth: true }
             Button { text: "⤴ DevTools"; onClicked: Qt.openUrlExternally("http://localhost:9222") }
         }
@@ -72,6 +85,10 @@ Window {
                     root.activeIndex = currentIndex;
                     tabStack.currentIndex = currentIndex;
                     urlField.text = currentView() ? currentView().url.toString() : "";
+                    // Auto-update themes when switching tabs
+                    if (insightsPanelVisible && insightContent.autoUpdate) {
+                        refreshInsights()
+                    }
                 }
                 Repeater {
                     model: tabsModel
@@ -104,11 +121,52 @@ Window {
             Button { text: "Go"; onClicked: openUrl(urlField.text) }
         }
 
-        StackLayout {
-            id: tabStack
+        SplitView {
             Layout.fillWidth: true
             Layout.fillHeight: true
-            currentIndex: tabBar.currentIndex
+            orientation: Qt.Horizontal
+            
+            StackLayout {
+                id: tabStack
+                SplitView.fillWidth: true
+                SplitView.minimumWidth: 400
+                currentIndex: tabBar.currentIndex
+            }
+            
+            InsightsPanel {
+                id: insightContent
+                SplitView.preferredWidth: 600
+                SplitView.minimumWidth: 400
+                visible: insightsPanelVisible
+                
+                onAutoUpdateToggled: (enabled) => {
+                    if (enabled) {
+                        refreshInsights()
+                    }
+                }
+                onAskChat: (text) => {
+                    let v = currentView()
+                    let context = {
+                        "page": { "url": v ? v.url.toString() : "", "title": root.currentTitle },
+                        "selection": v ? v.getSelectionText() : "",
+                        "themes": insightContent.themes
+                    }
+                    chat.sendMessage(text, context)
+                }
+                onThemeClicked: (theme) => {
+                    analyzer.searchTheme(theme)
+                }
+                onOpenLinkInNewTab: (url) => addTab(url)
+                onRunNextFollowup: () => {
+                    let v = currentView()
+                    let context = {
+                        "page": { "url": v ? v.url.toString() : "", "title": root.currentTitle },
+                        "selection": v ? v.getSelectionText() : "",
+                        "themes": insightContent.themes
+                    }
+                    chat.runFollowupQueue(context)
+                }
+            }
         }
         
         Component {
@@ -119,6 +177,10 @@ Window {
                 onUrlChanged: {
                     if (tabBar.currentIndex === tabIndex) {
                         urlField.text = url.toString();
+                        // Auto-update themes if enabled and panel is visible
+                        if (insightsPanelVisible && insightContent.autoUpdate) {
+                            refreshInsights()
+                        }
                     }
                     if (tabIndex >= 0 && tabIndex < tabsModel.count) {
                         tabsModel.setProperty(tabIndex, "url", url.toString());
@@ -193,75 +255,20 @@ Window {
         }
     }
 
-    Drawer {
-        id: insightsPanel
-        width: Math.min(600, root.width * 0.55)
-        height: parent.height
-        edge: Qt.RightEdge
-        modal: false
-
-        InsightsPanel {
-            id: insightContent
-            anchors.fill: parent
-
-            onRefreshClicked: insightsPanel.refreshNow()
-            onUseLLMToggled: if (useLLM) insightsPanel.refreshNow()
-            onAskChat: (text) => {
-                let v = currentView()
-                let context = {
-                    "page": { "url": v ? v.url.toString() : "", "title": root.currentTitle },
-                    "selection": v ? v.getSelectionText() : "",
-                    "themes": insightContent.themes
-                }
-                chat.sendMessage(text, context)
-            }
-            onThemeClicked: (theme) => {
-                // Search for statistics when theme is clicked
-                analyzer.searchTheme(theme)
-            }
-            onOpenLinkInNewTab: (url) => addTab(url)
-            onRunNextFollowup: () => {
-                let v = currentView()
-                let context = {
-                    "page": { "url": v ? v.url.toString() : "", "title": root.currentTitle },
-                    "selection": v ? v.getSelectionText() : "",
-                    "themes": insightContent.themes
-                }
-                chat.runFollowupQueue(context)
-            }
-        }
-
-        onOpenedChanged: if (opened) refreshNow()
-
-        function refreshNow() {
-            let v = currentView()
-            if (!v) return
-            v.extractVisibleText((txt) => {
-                insightContent.setLoading(true)
-                if (insightContent.useLLM) analyzer.analyzeTextLLM(txt)
-                else analyzer.analyzeTextFast(txt)
-            })
-        }
-
-        Component.onCompleted: {
-            analyzer.themesReady.connect((themes) => insightContent.setThemes(themes))
-            analyzer.resultsReady.connect((items) => insightContent.setItems(items))
-            analyzer.error.connect((msg) => insightContent.setError(msg))
-
-            chat.messagesChanged.connect(() => insightContent.setChatMessages(chat.messages))
-            chat.partialUpdated.connect(() => insightContent.updateLastMessage(chat.messages))
-            chat.streamingFinished.connect(() => insightContent.finishStreaming(chat.messages))
-            chat.citationsUpdated.connect((cites) => insightContent.addCitations(cites))
-            chat.followupsChanged.connect(() => insightContent.setFollowups(chat.followups))
-            chat.error.connect((m) => insightContent.setChatError(m))
-        }
+    function refreshInsights() {
+        let v = currentView()
+        if (!v) return
+        v.extractVisibleText((txt) => {
+            insightContent.setLoading(true)
+            analyzer.analyzeTextLLM(txt)
+        })
     }
 
+
     function toggleInsights() { 
-        if (insightsPanel.opened) {
-            insightsPanel.close()
-        } else {
-            insightsPanel.open()
+        insightsPanelVisible = !insightsPanelVisible
+        if (insightsPanelVisible) {
+            refreshInsights()
         }
     }
     function openUrl(u) {

@@ -8,8 +8,7 @@ Item {
     property bool loading: false
     property var themes: []
     property var items: []      // array of { title, url, summary }
-    property string errorMsg: ""
-    property bool useLLM: true
+    property bool autoUpdate: false
 
     // Chat state
     property var chatMessages: []   // [{role, content, citations?:[] }]
@@ -17,8 +16,7 @@ Item {
     property var citations: []      // [{title,url}]
     property var followups: []      // [{query}]
 
-    signal refreshClicked()
-    signal useLLMToggled(bool useLLM)
+    signal autoUpdateToggled(bool enabled)
     signal askChat(string text)
     signal openLinkInNewTab(string url)
     signal runNextFollowup()
@@ -27,7 +25,6 @@ Item {
     function setLoading(v) { loading = v }
     function setThemes(t) { themes = t; loading = false }
     function setItems(x) { items = x; loading = false }
-    function setError(e) { errorMsg = e; loading = false }
     function setChatMessages(m) { chatMessages = m }
     function setChatError(e) { chatError = e }
     function addCitations(c) { citations = citations.concat(c) }
@@ -54,12 +51,14 @@ Item {
             Label { text: "Insights"; font.bold: true; font.pointSize: 14 }
             Item { Layout.fillWidth: true }
             CheckBox {
-                id: llmToggle
-                checked: true
-                text: checked ? "LLM themes" : "Fast themes"
-                onToggled: root.useLLMToggled(checked)
+                id: autoToggle
+                checked: root.autoUpdate
+                text: "Auto"
+                onToggled: {
+                    root.autoUpdate = checked
+                    root.autoUpdateToggled(checked)
+                }
             }
-            Button { text: "↻ Refresh"; onClicked: root.refreshClicked() }
         }
 
         // Themes

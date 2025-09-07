@@ -1,28 +1,239 @@
-# MicroBrowser — Streaming Chat + Open-in-Tab + Follow-up Queue
+# Statista Research Assistant
 
-Adds:
-- **Streaming chat** via NDJSON (`statista.llm.chat.stream`)
-  - Supports `delta` tokens, `citation` events (`{title,url}`), and `followups` (`[{query}]`).
-- **Open in new tab** buttons for citations and related items.
-- **Follow-up queue**: assistant suggests queries; run individually or "Run next ▶".
+A Qt6/QML-based desktop application that combines web browsing with AI-powered statistical research capabilities through integration with the Statista API and Claude.
 
-## Expected stream format (NDJSON)
-Each line is a JSON object:
-```json
-{"type":"delta","text":"partial token ..."}
-{"type":"citation","title":"E-commerce revenue in DE","url":"https://.../statistic/..."}
-{"type":"followups","items":[{"query":"Market size of ..."},{"query":"Growth by segment ..."}]}
+## Features
+
+### 🌐 Multi-Tab Web Browser
+- Full-featured web browser with multiple tab support
+- WebEngine-based rendering for modern web compatibility
+- Download manager with progress tracking
+- Session persistence across application restarts
+- DevTools integration for debugging
+
+### 🤖 AI-Powered Research Assistant
+- **Streaming Chat Interface**: Real-time responses with smooth text streaming (no flashing)
+- **Statista Integration**: Direct access to statistical data and research
+- **Smart Themes**: Automatic extraction and analysis of page content themes
+- **Citations**: Automatic source tracking with clickable references
+- **Follow-up Suggestions**: Intelligent query suggestions based on context
+
+### 📊 Insights Panel
+- **Theme Extraction**: Automatically identifies key topics from web pages
+- **LLM vs Fast Mode**: Toggle between AI-powered and quick theme extraction
+- **Interactive Chat**: Context-aware conversations about current page content
+- **Visual Design**: Modern, gradient-based UI with smooth animations
+
+## Prerequisites
+
+- Qt6 (6.5 or later) with the following modules:
+  - QtCore
+  - QtQuick
+  - QtWebEngine
+  - QtNetwork
+  - Qt.labs.platform
+- CMake 3.16 or later
+- C++17 compatible compiler
+- API Keys:
+  - Statista MCP API key
+  - Claude API key (optional, for direct Claude integration)
+
+## Installation
+
+### macOS
+
+1. Install Qt6 via Homebrew:
+```bash
+brew install qt@6
 ```
-Adjust `ChatBridge::postStream()` if your server uses SSE or a different schema.
 
-## Configure and run
+2. Clone the repository:
+```bash
+git clone <repository-url>
+cd answer
+```
+
+3. Set up environment variables:
+```bash
+cp .env.example .env
+# Edit .env and add your API keys:
+# STATISTA_MCP_ENDPOINT=https://api.statista.ai/v1/mcp
+# STATISTA_MCP_API_KEY=your_key_here
+# ANTHROPIC_API_KEY=your_claude_key_here (optional)
+```
+
+### Building
+
+```bash
+# Clean build (recommended for first build or after major changes)
+./clean.sh
+
+# Build the application
+./build.sh
+
+# Or manually:
+mkdir build && cd build
+cmake ..
+cmake --build . -j$(sysctl -n hw.ncpu)
+```
+
+### Running
+
+```bash
+# Using the run script
+./run.sh
+
+# Or directly
+./build/MicroBrowser
+```
+
+## Usage
+
+1. **Browse the Web**: Use the browser tabs to navigate to any website
+2. **Open Insights Panel**: Click the "Insights" button in the toolbar
+3. **Extract Themes**: The panel automatically analyzes visible page content
+4. **Ask Questions**: Use the chat interface to ask about statistics and data
+5. **Explore Citations**: Click on citation buttons to open sources in new tabs
+6. **Follow Suggestions**: Use the suggested follow-up questions for deeper research
+
+## Architecture
+
+### Core Components
+
+- **ChatBridge** (`src/chatbridge.cpp`): Manages streaming chat communication
+  - Handles NDJSON streaming format
+  - Processes delta tokens, citations, and follow-up suggestions
+  - Maintains conversation history and context
+  - Implements smooth streaming without UI flashing
+
+- **Analyzer** (`src/analyzer.cpp`): Interfaces with Statista MCP API
+  - Extracts themes from web content
+  - Manages MCP session initialization
+  - Handles both LLM and fast analysis modes
+
+- **Session** (`src/session.cpp`): Manages application state persistence
+  - Saves and restores browser tabs
+  - Maintains active tab index
+  - Stores user preferences
+
+### QML Views
+
+- **Main.qml**: Application window and top-level navigation
+- **ChatView.qml**: Modern chat interface with streaming support
+- **InsightsPanel.qml**: Side panel for themes and chat interaction
+- **TabWebView.qml**: Web browser tab implementation
+
+## Streaming Protocol
+
+The application uses NDJSON (Newline Delimited JSON) for streaming responses:
+
+```json
+{"type":"delta","text":"partial token..."}
+{"type":"citation","title":"Source Title","url":"https://..."}
+{"type":"followups","items":[{"query":"Suggested question?"}]}
+```
+
+For SSE endpoints, modify `ChatBridge::postStream()` to parse lines starting with `data:`.
+
+## Development
+
+### Project Structure
+
+```
+answer/
+├── src/               # C++ source files
+│   ├── main.cpp      # Application entry point
+│   ├── chatbridge.cpp/h  # Chat streaming logic
+│   ├── analyzer.cpp/h    # Content analysis
+│   └── session.cpp/h      # Session management
+├── qml/              # QML interface files
+│   ├── Main.qml      # Main window
+│   ├── ChatView.qml  # Chat interface
+│   ├── InsightsPanel.qml  # Insights panel
+│   └── TabWebView.qml     # Browser tabs
+├── CMakeLists.txt    # Build configuration
+├── CLAUDE.md         # AI assistant instructions
+└── build.sh/clean.sh # Build scripts
+```
+
+### Key Features Implementation
+
+#### Streaming Without Flashing
+- Uses `partialUpdated` signal for incremental updates
+- Maintains `streamingContent` property separate from final messages
+- Only updates the active streaming message, not entire message list
+
+#### Theme Display
+- Flow layout for responsive horizontal arrangement
+- Automatic wrapping to new lines
+- Clickable themes trigger relevant searches
+- Proper spacing and sizing to prevent overlapping
+
+#### Multi-Tab Browser
+- Dynamic tab creation and management
+- Session persistence across restarts
+- Integration with insights panel for current tab analysis
+
+## Configuration
+
+### Environment Variables
+
+Create a `.env` file with:
 ```bash
 export STATISTA_MCP_ENDPOINT="https://api.statista.ai/v1/mcp"
-export STATISTA_MCP_API_KEY="YOUR_KEY"
-mkdir build && cd build
-cmake .. && cmake --build .
-./MicroBrowser
+export STATISTA_MCP_API_KEY="your_key_here"
+export ANTHROPIC_API_KEY="your_claude_key_here"  # Optional
 ```
-Open the **Insights** panel, ask a question, and watch streaming text+citations. Click a citation to **open in a new tab**.
 
-> Swap the NDJSON parser for an SSE parser if your endpoint uses `text/event-stream` (parse lines starting with `data:`).
+### Build Options
+
+The `build.sh` script automatically:
+- Loads environment variables from `.env`
+- Sets up parallel compilation based on CPU cores
+- Configures Qt paths
+- Handles debug/release builds
+
+## Troubleshooting
+
+### Build Issues
+
+If you encounter build errors:
+1. Run `./clean.sh` to remove all build artifacts
+2. Ensure Qt6 is properly installed and in PATH
+3. Check that all required Qt modules are installed
+4. Verify CMake version is 3.16 or later
+
+### Runtime Issues
+
+- **Themes overlapping**: Fixed in latest version with proper Flow layout
+- **Empty assistant responses**: Ensure API keys are correctly set
+- **Streaming flashing**: Uses partial update mechanism to prevent redraws
+- **WebEngine errors**: Check Qt WebEngine is properly installed
+
+### API Configuration
+
+Common issues:
+- **401 Unauthorized**: Check API key is valid
+- **Network errors**: Verify endpoint URL is correct
+- **Empty responses**: Ensure proper API permissions
+
+## Contributing
+
+When contributing to this project:
+1. Follow existing code patterns and conventions
+2. Test changes thoroughly with `./clean.sh && ./build.sh`
+3. Update CLAUDE.md if adding new architectural components
+4. Ensure streaming functionality remains smooth
+5. Maintain backward compatibility
+
+## License
+
+[License information to be added]
+
+## Acknowledgments
+
+- Built with Qt6 framework
+- Powered by Statista API for statistical data
+- Enhanced with Claude AI for intelligent assistance
+- UI/UX inspired by modern chat applications
+
