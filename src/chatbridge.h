@@ -70,6 +70,7 @@ private:
 
     QVariantList m_messages;
     QVariantList m_followups;
+    QList<QVariantMap> m_currentCitations;
     QByteArray m_buffer;
     QNetworkReply* m_reply{nullptr};
     

@@ -130,7 +130,10 @@ Item {
                 citations: root.citations
                 followups: root.followups
                 onSend: (txt) => root.askChat(txt)
-                onOpenCitation: (url) => root.openLinkInNewTab(url)
+                onOpenCitation: (url) => {
+                    console.log("Opening link in new tab:", url)
+                    root.openLinkInNewTab(url)
+                }
                 onRunNextFollowup: () => root.runNextFollowup()
             }
         }

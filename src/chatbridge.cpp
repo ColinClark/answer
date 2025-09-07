@@ -78,12 +78,22 @@ void ChatBridge::updateLastAssistant(const QString& delta) {
 }
 
 void ChatBridge::addCitations(const QList<QVariantMap>& cites) {
+    qDebug() << "ChatBridge: addCitations called with" << cites.size() << "citations";
+    for (const auto& cite : cites) {
+        qDebug() << "  Citation:" << cite["title"].toString() << "->" << cite["url"].toString();
+    }
+    
     if (m_messages.isEmpty()) return;
     auto last = m_messages.last().toMap();
     QVariantList list = last.value("citations").toList();
     for (const auto& c : cites) list << c;
     last["citations"] = list;
     m_messages[m_messages.size()-1] = last;
+    
+    // Store citations for appending to message later
+    m_currentCitations.append(cites);
+    qDebug() << "ChatBridge: Total citations stored:" << m_currentCitations.size();
+    
     emit messagesChanged();
     emit citationsUpdated(cites);
 }
@@ -96,6 +106,9 @@ void ChatBridge::setFollowups(const QList<QVariantMap>& fups) {
 void ChatBridge::sendMessage(const QString& userText, const QVariantMap& context) {
     qDebug() << "ChatBridge::sendMessage called with:" << userText;
     qDebug() << "ChatBridge: Anthropic API key present:" << !m_anthropicApiKey.isEmpty();
+    
+    // Clear citations from previous messages
+    m_currentCitations.clear();
     
     if (m_anthropicApiKey.isEmpty()) { 
         emit error("Anthropic API key not configured"); 
@@ -115,6 +128,9 @@ void ChatBridge::sendThemeQuery(const QString& theme) {
 }
 
 void ChatBridge::sendToClaudeAPI(const QString& userText, const QVariantMap& context) {
+    // Clear citations from previous queries
+    m_currentCitations.clear();
+    
     // Build messages for Claude
     QJsonArray messages;
     for (const auto& v : m_messages) {
@@ -270,6 +286,27 @@ void ChatBridge::processClaudeStream() {
         if (!jsonData.isEmpty()) {
             if (jsonData == "[DONE]") {
                 qDebug() << "ChatBridge: Stream complete";
+                
+                // Append citations to the last assistant message if we have any
+                if (!m_currentCitations.isEmpty() && !m_messages.isEmpty()) {
+                    auto last = m_messages.last().toMap();
+                    if (last["role"].toString() == "assistant") {
+                        QString content = last["content"].toString();
+                        
+                        // Add citation links at the end of the message
+                        content += "\n\n**Sources:**\n";
+                        for (const auto& cite : m_currentCitations) {
+                            QString title = cite["title"].toString();
+                            QString url = cite["url"].toString();
+                            content += QString("- [%1](%2)\n").arg(title, url);
+                        }
+                        
+                        last["content"] = content;
+                        m_messages[m_messages.size()-1] = last;
+                    }
+                    m_currentCitations.clear();
+                }
+                
                 emit streamingFinished();
                 emit messagesChanged();
                 continue;
@@ -347,9 +384,31 @@ void ChatBridge::processClaudeStream() {
                     auto delta = obj["delta"].toObject();
                     if (delta.contains("stop_reason")) {
                         QString stopReason = delta["stop_reason"].toString();
-                        if (stopReason == "tool_use") {
-                            qDebug() << "ChatBridge: Message stopped for tool use";
+                        qDebug() << "ChatBridge: Message stopped with reason:" << stopReason;
+                        
+                        // Append citations when message completes (for any stop reason)
+                        if (!m_currentCitations.isEmpty() && !m_messages.isEmpty()) {
+                            auto last = m_messages.last().toMap();
+                            if (last["role"].toString() == "assistant") {
+                                QString content = last["content"].toString();
+                                
+                                // Add citation links at the end of the message
+                                content += "\n\n**Sources:**\n";
+                                for (const auto& cite : m_currentCitations) {
+                                    QString title = cite["title"].toString();
+                                    QString url = cite["url"].toString();
+                                    content += QString("- [%1](%2)\n").arg(title, url);
+                                }
+                                
+                                last["content"] = content;
+                                m_messages[m_messages.size()-1] = last;
+                                qDebug() << "ChatBridge: Appended" << m_currentCitations.size() << "citations to message";
+                            }
+                            m_currentCitations.clear();
                         }
+                        
+                        emit streamingFinished();
+                        emit messagesChanged();
                     }
                 }
             }
@@ -509,6 +568,35 @@ void ChatBridge::sendToolResult(const QString& toolId, const QJsonObject& result
                 QJsonObject firstContent = contentArray[0].toObject();
                 if (firstContent.contains("text")) {
                     toolResultText = firstContent["text"].toString();
+                    
+                    // Extract citations from Statista tool results
+                    if (toolDetails.name.contains("statista") || toolDetails.name.contains("search-statistics")) {
+                        QJsonDocument textDoc = QJsonDocument::fromJson(toolResultText.toUtf8());
+                        if (textDoc.isObject()) {
+                            QJsonObject textObj = textDoc.object();
+                            if (textObj.contains("items") && textObj["items"].isArray()) {
+                                QJsonArray items = textObj["items"].toArray();
+                                qDebug() << "ChatBridge: Found" << items.size() << "items in Statista result";
+                                
+                                // Extract up to 5 most relevant citations
+                                int citationCount = 0;
+                                for (const auto& item : items) {
+                                    if (citationCount >= 5) break;
+                                    
+                                    QJsonObject itemObj = item.toObject();
+                                    if (itemObj.contains("title") && itemObj.contains("link")) {
+                                        QVariantMap citation;
+                                        citation["title"] = itemObj["title"].toString();
+                                        citation["url"] = itemObj["link"].toString();
+                                        m_currentCitations.append(citation);
+                                        citationCount++;
+                                        qDebug() << "ChatBridge: Added citation:" << citation["title"].toString();
+                                    }
+                                }
+                                qDebug() << "ChatBridge: Extracted" << m_currentCitations.size() << "citations from tool result";
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -716,7 +804,71 @@ void ChatBridge::setAnalyzer(QObject* analyzer) {
 void ChatBridge::onToolResult(const QString& requestId, const QJsonObject& result) {
     qDebug() << "ChatBridge: onToolResult called with requestId:" << requestId;
     qDebug() << "ChatBridge: Pending tool calls:" << m_pendingToolCalls.keys();
-    qDebug() << "ChatBridge: Tool result:" << result;
+    qDebug() << "ChatBridge: Tool result:" << QJsonDocument(result).toJson(QJsonDocument::Compact);
+    
+    // Extract citations from Statista tool results
+    // The structure is: result -> content -> [array of items with text field containing JSON string]
+    if (result.contains("result")) {
+        auto resultObj = result["result"].toObject();
+        if (resultObj.contains("content")) {
+            auto contentArr = resultObj["content"].toArray();
+            QList<QVariantMap> citations;
+            
+            for (const auto& item : contentArr) {
+                auto itemObj = item.toObject();
+                qDebug() << "ChatBridge: Content item keys:" << itemObj.keys();
+                
+                if (itemObj.contains("text")) {
+                    QJsonObject textObj;
+                    
+                    // Check if text is already an object (not a string)
+                    if (itemObj["text"].isObject()) {
+                        textObj = itemObj["text"].toObject();
+                        qDebug() << "ChatBridge: Text is already an object with keys:" << textObj.keys();
+                    } else if (itemObj["text"].isString()) {
+                        // The text field contains a JSON string that needs to be parsed
+                        QString textStr = itemObj["text"].toString();
+                        qDebug() << "ChatBridge: Parsing text string:" << textStr.left(200);
+                        QJsonDocument textDoc = QJsonDocument::fromJson(textStr.toUtf8());
+                        if (textDoc.isObject()) {
+                            textObj = textDoc.object();
+                            qDebug() << "ChatBridge: Parsed text object keys:" << textObj.keys();
+                        }
+                    }
+                    
+                    if (!textObj.isEmpty()) {
+                        // Check for direct title and link in the object
+                        if (textObj.contains("title") && textObj.contains("link")) {
+                            QVariantMap cite;
+                            cite["title"] = textObj["title"].toString();
+                            cite["url"] = textObj["link"].toString();
+                            citations << cite;
+                            qDebug() << "ChatBridge: Found citation from chart data:" << cite["title"].toString() << "->" << cite["url"].toString();
+                        }
+                        
+                        // Also check for statistics array
+                        if (textObj.contains("statistics")) {
+                            auto statsArr = textObj["statistics"].toArray();
+                            for (const auto& stat : statsArr) {
+                                auto statObj = stat.toObject();
+                                if (statObj.contains("title") && statObj.contains("link")) {
+                                    QVariantMap cite;
+                                    cite["title"] = statObj["title"].toString();
+                                    cite["url"] = statObj["link"].toString();
+                                    citations << cite;
+                                    qDebug() << "ChatBridge: Found citation from statistics:" << cite["title"].toString() << "->" << cite["url"].toString();
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            
+            if (!citations.isEmpty()) {
+                addCitations(citations);
+            }
+        }
+    }
     
     if (m_pendingToolCalls.contains(requestId)) {
         m_pendingToolCalls.remove(requestId);

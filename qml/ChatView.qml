@@ -162,6 +162,12 @@ Item {
                                     background: Rectangle { color: "transparent" }
                                     selectByMouse: true
                                     
+                                    // Handle link clicks
+                                    onLinkActivated: (link) => {
+                                        console.log("Link clicked:", link)
+                                        root.openCitation(link)
+                                    }
+                                    
                                     // Custom markdown styling for assistant messages
                                     onTextChanged: {
                                         if (m.role === "assistant") {
