@@ -13,7 +13,7 @@ Window {
 
     property int activeIndex: 0
     property string currentTitle: (tabStack.currentItem && tabStack.currentItem.title) ? tabStack.currentItem.title : ""
-    property bool insightsPanelVisible: false
+    property bool insightsPanelVisible: true
     
     ListModel {
         id: tabsModel
@@ -41,10 +41,13 @@ Window {
         chat.citationsUpdated.connect((cites) => insightContent.addCitations(cites))
         chat.followupsChanged.connect(() => insightContent.setFollowups(chat.followups))
         chat.error.connect((m) => insightContent.setChatError(m))
+        
+        // Extract themes for initial page since insights panel is open by default
+        Qt.callLater(refreshInsights)
     }
     
     function createTab(url) {
-        tabsModel.append({ url: url })
+        tabsModel.append({ url: url, title: "", icon: "" })
         let newView = webViewComponent.createObject(tabStack, {
             profile: profile,
             initialUrl: url,
@@ -57,7 +60,7 @@ Window {
         id: profile
         storageName: "MicroBrowserProfile"
         offTheRecord: false
-        httpUserAgent: "MicroBrowser/0.5"
+        httpUserAgent: "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36 StatistaBrowser/1.0"
         onDownloadRequested: (download) => downloadsPanel.handleDownload(download)
     }
 
@@ -66,14 +69,6 @@ Window {
         anchors.margins: 6
         spacing: 4
 
-        RowLayout {
-            spacing: 6; height: 38
-            Button { text: "＋ Tab"; onClicked: addTab("https://example.com") }
-            Button { text: downloadsPanel.opened ? "Downloads ✓" : "Downloads"; onClicked: { if (downloadsPanel.opened) downloadsPanel.close(); else downloadsPanel.open(); } }
-            Button { text: insightsPanelVisible ? "Insights ✓" : "Insights"; onClicked: toggleInsights() }
-            Item { Layout.fillWidth: true }
-            Button { text: "⤴ DevTools"; onClicked: Qt.openUrlExternally("http://localhost:9222") }
-        }
 
         RowLayout {
             spacing: 6; height: 36
@@ -93,17 +88,68 @@ Window {
                 Repeater {
                     model: tabsModel
                     TabButton {
-                        text: {
-                            let v = tabStack.itemAt(index)
-                            let t = v && v.title ? v.title : model.url
-                            if (t.length > 22) t = t.slice(0, 22) + "…"
-                            return t
+                        id: tabBtn
+                        property int tabIndex: index
+                        
+                        contentItem: RowLayout {
+                            spacing: 4
+                            
+                            // Favicon
+                            Image {
+                                source: model.icon || ""
+                                width: 16
+                                height: 16
+                                fillMode: Image.PreserveAspectFit
+                                visible: source != ""
+                            }
+                            
+                            Text {
+                                Layout.fillWidth: true
+                                text: {
+                                    let t = model.title || model.url
+                                    // Show a better default for new tabs
+                                    if (t === "https://example.com" || t === "") {
+                                        return "New Tab"
+                                    }
+                                    return t
+                                }
+                                color: tabBtn.checked ? "black" : "#666"
+                                elide: Text.ElideRight
+                                horizontalAlignment: Text.AlignLeft
+                                verticalAlignment: Text.AlignVCenter
+                            }
+                            
+                            Text {
+                                text: "✕"
+                                color: closeMouseArea.containsMouse ? "red" : "#999"
+                                font.pixelSize: 12
+                                visible: tabsModel.count > 1
+                                
+                                MouseArea {
+                                    id: closeMouseArea
+                                    anchors.fill: parent
+                                    hoverEnabled: true
+                                    onClicked: {
+                                        closeTab(tabBtn.tabIndex)
+                                        mouse.accepted = true
+                                    }
+                                }
+                            }
                         }
-                        onClicked: tabBar.currentIndex = index
+                        
+                        onClicked: tabBar.currentIndex = tabIndex
+                    }
+                }
+                // Add new tab button
+                TabButton {
+                    text: "+"
+                    font.bold: true
+                    onClicked: {
+                        addTab("https://example.com")
+                        tabBar.currentIndex = tabsModel.count - 1
                     }
                 }
             }
-            Button { text: "✖ Close"; enabled: tabsModel.count > 1; onClicked: closeCurrentTab() }
         }
 
         RowLayout {
@@ -198,6 +244,17 @@ Window {
                     if (tabBar.currentIndex === tabIndex) {
                         root.currentTitle = title;
                     }
+                    // Force tab bar to update
+                    if (tabIndex >= 0 && tabIndex < tabsModel.count) {
+                        tabsModel.setProperty(tabIndex, "title", title);
+                    }
+                }
+                
+                onIconChanged: {
+                    // Force tab bar to update when favicon loads
+                    if (tabIndex >= 0 && tabIndex < tabsModel.count) {
+                        tabsModel.setProperty(tabIndex, "icon", icon.toString());
+                    }
                 }
                 
                 onNewTabRequested: (u) => addTab(u.toString())
@@ -281,12 +338,6 @@ Window {
     }
 
 
-    function toggleInsights() { 
-        insightsPanelVisible = !insightsPanelVisible
-        if (insightsPanelVisible) {
-            refreshInsights()
-        }
-    }
     function openUrl(u) {
         let url = u.trim();
         if (url.length === 0) return;
@@ -307,9 +358,8 @@ Window {
         createTab(u);
         tabBar.currentIndex = tabsModel.count - 1;
     }
-    function closeCurrentTab() {
+    function closeTab(idx) {
         if (tabsModel.count <= 1) return;
-        let idx = tabBar.currentIndex;
         
         // Remove the view
         let view = tabStack.children[idx];
@@ -325,7 +375,16 @@ Window {
             }
         }
         
-        tabBar.currentIndex = Math.max(0, Math.min(idx, tabsModel.count - 1));
+        // Adjust current tab if needed
+        if (tabBar.currentIndex >= tabsModel.count) {
+            tabBar.currentIndex = tabsModel.count - 1;
+        } else if (tabBar.currentIndex >= idx && tabBar.currentIndex > 0) {
+            tabBar.currentIndex = Math.max(0, tabBar.currentIndex - 1);
+        }
+    }
+    
+    function closeCurrentTab() {
+        closeTab(tabBar.currentIndex);
     }
     function currentView() { 
         if (tabStack.children.length > tabStack.currentIndex) {

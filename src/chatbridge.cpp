@@ -352,7 +352,9 @@ void ChatBridge::processClaudeStream() {
                         
                         // Add descriptive message about what tool is being used
                         QString toolMessage;
-                        if (toolName == "statista.llm.chat.stream") {
+                        if (toolName == "search-statistics") {
+                            toolMessage = "\n\n🔍 Searching Statista...\n";
+                        } else if (toolName == "statista.llm.chat.stream") {
                             toolMessage = "\n\n🔍 Searching Statista database for relevant statistics and data...\n";
                         } else if (toolName == "statista.llm.search") {
                             toolMessage = "\n\n🔍 Searching for relevant information...\n";

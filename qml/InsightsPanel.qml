@@ -46,21 +46,6 @@ Item {
         anchors.margins: 10
         spacing: 8
 
-        RowLayout {
-            Layout.fillWidth: true
-            Label { text: "Insights"; font.bold: true; font.pointSize: 14 }
-            Item { Layout.fillWidth: true }
-            CheckBox {
-                id: autoToggle
-                checked: root.autoUpdate
-                text: "Auto"
-                onToggled: {
-                    root.autoUpdate = checked
-                    root.autoUpdateToggled(checked)
-                }
-            }
-        }
-
         // Themes
         GroupBox {
             title: "Themes"
@@ -73,24 +58,28 @@ Item {
                 Flow {
                     id: themesFlow
                     anchors.fill: parent
-                    anchors.margins: 10
-                    spacing: 15
+                    anchors.margins: 8
+                    spacing: 8
                     
                     Repeater {
                         model: themes.length
                         Rectangle {
-                            radius: 6
+                            radius: 4
                             border.color: "#aaa"
-                            height: 36
-                            width: Math.max(100, Math.min(250, themeText.implicitWidth + 30))
+                            height: Math.max(28, themeText.implicitHeight + 10)
+                            width: Math.min(themesFlow.width - 10, Math.max(80, themeText.implicitWidth + 20))
                             color: themeMouse.containsMouse ? "#e0e0e0" : "#f5f5f5"
                             
                             Text { 
                                 id: themeText
                                 anchors.centerIn: parent
+                                anchors.margins: 5
+                                width: parent.width - 10
                                 text: themes[index] 
                                 color: themeMouse.containsMouse ? "#0066cc" : "black"
-                                elide: Text.ElideRight
+                                font.pixelSize: 12
+                                wrapMode: Text.WordWrap
+                                horizontalAlignment: Text.AlignHCenter
                             }
                             
                             MouseArea {
