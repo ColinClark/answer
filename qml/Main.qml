@@ -260,14 +260,17 @@ Window {
                 onNewTabRequested: (u) => addTab(u.toString())
                 
                 onSendSelectionToChat: (text) => {
-                    // Send selected text to chat like we do with themes
+                    // Send selected text to both analyzer and chat, like theme clicks
+                    analyzer.searchTheme(text)  // Same as theme click
+                    
+                    // Also send to chat for analysis
                     let v = currentView()
                     let context = {
                         "page": { "url": v ? v.url.toString() : "", "title": root.currentTitle },
                         "selection": text,
                         "themes": insightContent.themes
                     }
-                    chat.sendMessage("Analyze this text: " + text, context)
+                    chat.sendMessage("Search for statistics about: " + text, context)
                 }
             }
         }
