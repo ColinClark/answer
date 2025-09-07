@@ -29,6 +29,7 @@ Item {
     function setChatError(e) { chatError = e }
     function addCitations(c) { citations = citations.concat(c) }
     function setFollowups(f) { followups = f }
+    function clearCitations() { citations = [] }
     function updateLastMessage(m) { 
         // Update streaming content for smooth display
         if (m.length > 0) {

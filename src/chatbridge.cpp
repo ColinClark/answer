@@ -303,25 +303,8 @@ void ChatBridge::processClaudeStream() {
             if (jsonData == "[DONE]") {
                 qDebug() << "ChatBridge: Stream complete";
                 
-                // Append citations to the last assistant message if we have any
-                if (!m_currentCitations.isEmpty() && !m_messages.isEmpty()) {
-                    auto last = m_messages.last().toMap();
-                    if (last["role"].toString() == "assistant") {
-                        QString content = last["content"].toString();
-                        
-                        // Add citation links at the end of the message
-                        content += "\n\n**Sources:**\n";
-                        for (const auto& cite : m_currentCitations) {
-                            QString title = cite["title"].toString();
-                            QString url = cite["url"].toString();
-                            content += QString("- [%1](%2)\n").arg(title, url);
-                        }
-                        
-                        last["content"] = content;
-                        m_messages[m_messages.size()-1] = last;
-                    }
-                    m_currentCitations.clear();
-                }
+                // Citations are now handled via citationsUpdated signal and shown as buttons
+                // Don't append them as text to the message
                 
                 emit streamingFinished();
                 emit messagesChanged();
@@ -404,25 +387,11 @@ void ChatBridge::processClaudeStream() {
                         QString stopReason = delta["stop_reason"].toString();
                         qDebug() << "ChatBridge: Message stopped with reason:" << stopReason;
                         
-                        // Append citations when message completes (for any stop reason)
-                        if (!m_currentCitations.isEmpty() && !m_messages.isEmpty()) {
-                            auto last = m_messages.last().toMap();
-                            if (last["role"].toString() == "assistant") {
-                                QString content = last["content"].toString();
-                                
-                                // Add citation links at the end of the message
-                                content += "\n\n**Sources:**\n";
-                                for (const auto& cite : m_currentCitations) {
-                                    QString title = cite["title"].toString();
-                                    QString url = cite["url"].toString();
-                                    content += QString("- [%1](%2)\n").arg(title, url);
-                                }
-                                
-                                last["content"] = content;
-                                m_messages[m_messages.size()-1] = last;
-                                qDebug() << "ChatBridge: Appended" << m_currentCitations.size() << "citations to message";
-                            }
-                            m_currentCitations.clear();
+                        // Citations are now handled via citationsUpdated signal and shown as buttons
+                        // Don't append them as text to the message
+                        // The citations have already been emitted via citationsUpdated signal
+                        if (!m_currentCitations.isEmpty()) {
+                            qDebug() << "ChatBridge: Citations available:" << m_currentCitations.size() << "citations (shown as buttons)";
                         }
                         
                         emit streamingFinished();

@@ -191,15 +191,21 @@ Window {
                     }
                 }
                 onAskChat: (text) => {
+                    // Clear citations from previous messages before starting new one
+                    insightContent.clearCitations()
+                    
+                    // For theme clicks, this receives "Search for statistics about: [theme]"
+                    // Just send it to chat as-is with the context
                     let v = currentView()
                     let context = {
                         "page": { "url": v ? v.url.toString() : "", "title": root.currentTitle },
-                        "selection": v ? v.getSelectionText() : "",
+                        "selection": "",  // Theme clicks never have selected text
                         "themes": insightContent.themes
                     }
                     chat.sendMessage(text, context)
                 }
                 onThemeClicked: (theme) => {
+                    // Just handle the analyzer search
                     analyzer.searchTheme(theme)
                 }
                 onOpenLinkInNewTab: (url) => addTab(url)
@@ -260,14 +266,18 @@ Window {
                 onNewTabRequested: (u) => addTab(u.toString())
                 
                 onSendSelectionToChat: (text) => {
-                    // Send selected text to both analyzer and chat, like theme clicks
-                    analyzer.searchTheme(text)  // Same as theme click
+                    // Clear citations from previous messages
+                    insightContent.clearCitations()
                     
-                    // Also send to chat for analysis
+                    // Do EXACTLY what theme clicks do:
+                    // 1. Call analyzer.searchTheme (like onThemeClicked does)
+                    analyzer.searchTheme(text)
+                    
+                    // 2. Send to chat (like onAskChat does)
                     let v = currentView()
                     let context = {
                         "page": { "url": v ? v.url.toString() : "", "title": root.currentTitle },
-                        "selection": text,
+                        "selection": "",  // Keep empty like theme clicks
                         "themes": insightContent.themes
                     }
                     chat.sendMessage("Search for statistics about: " + text, context)
@@ -350,7 +360,6 @@ Window {
             }
         })
     }
-
 
     function openUrl(u) {
         let url = u.trim();
