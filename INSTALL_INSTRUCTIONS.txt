@@ -1,0 +1,54 @@
+MERCURY INSTALLATION INSTRUCTIONS
+==================================
+
+IMPORTANT: Mercury requires Qt6 framework to be installed first.
+
+STEP 1: INSTALL QT6 (One-time setup)
+-------------------------------------
+1. Open Terminal (find it in Applications > Utilities)
+2. Install Homebrew if you don't have it:
+   /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+3. Install Qt6:
+   brew install qt@6
+   (This takes 5-10 minutes)
+
+STEP 2: INSTALL MERCURY
+-----------------------
+1. Double-click Mercury-Simple.dmg to open it
+2. Drag Mercury to your Applications folder
+3. Eject the DMG
+
+STEP 3: FIRST LAUNCH (Important!)
+---------------------------------
+macOS will block the app because it's not from the App Store.
+
+1. Go to Applications folder
+2. RIGHT-CLICK on Mercury (don't double-click)
+3. Select "Open" from the menu
+4. Click "Open" in the security dialog
+
+After this, Mercury will open normally.
+
+TROUBLESHOOTING
+--------------
+If you see "Mercury is damaged":
+1. Open Terminal
+2. Type: xattr -cr /Applications/Mercury.app
+3. Press Enter
+4. Try opening Mercury again (right-click > Open)
+
+If Mercury won't open:
+- Make sure Qt6 is installed: brew list qt@6
+- If not shown, install it: brew install qt@6
+
+USING MERCURY
+------------
+- Click "Insights" button to open AI assistant
+- Ask questions about statistics and data
+- Browse web normally with tabs
+- All API keys are pre-configured
+
+For help: Contact your Mercury administrator
+
+Version: Mercury 1.0.0
+Requires: macOS 11.0 or later, Qt6 framework

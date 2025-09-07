@@ -5,6 +5,7 @@
 #include "session.h"
 #include "analyzer.h"
 #include "chatbridge.h"
+#include "config.h"
 
 using namespace Qt::StringLiterals;
 
@@ -22,12 +23,13 @@ int main(int argc, char *argv[]) {
     Analyzer analyzer;
     ChatBridge chat;
 
-    analyzer.setEndpoint(qEnvironmentVariable("STATISTA_MCP_ENDPOINT", "https://api.statista.ai/v1/mcp"));
-    analyzer.setApiKey(qEnvironmentVariable("STATISTA_MCP_API_KEY"));
-    analyzer.setAnthropicApiKey(qEnvironmentVariable("ANTHROPIC_API_KEY"));
-    chat.setEndpoint(qEnvironmentVariable("STATISTA_MCP_ENDPOINT", "https://api.statista.ai/v1/mcp"));
-    chat.setApiKey(qEnvironmentVariable("STATISTA_MCP_API_KEY"));
-    chat.setAnthropicApiKey(qEnvironmentVariable("ANTHROPIC_API_KEY"));
+    // Use configuration with embedded defaults (falls back to env vars if set)
+    analyzer.setEndpoint(Config::getStatistaMcpEndpoint());
+    analyzer.setApiKey(Config::getStatistaMcpApiKey());
+    analyzer.setAnthropicApiKey(Config::getAnthropicApiKey());
+    chat.setEndpoint(Config::getStatistaMcpEndpoint());
+    chat.setApiKey(Config::getStatistaMcpApiKey());
+    chat.setAnthropicApiKey(Config::getAnthropicApiKey());
     
     // Connect ChatBridge to Analyzer for MCP calls
     chat.setAnalyzer(&analyzer);

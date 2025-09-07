@@ -1,4 +1,4 @@
-# Statista Research Assistant
+# Mercury - Statista Research Assistant
 
 A Qt6/QML-based desktop application that combines web browsing with AI-powered statistical research capabilities through integration with the Statista API and Claude.
 
@@ -24,7 +24,11 @@ A Qt6/QML-based desktop application that combines web browsing with AI-powered s
 - **Interactive Chat**: Context-aware conversations about current page content
 - **Visual Design**: Modern, gradient-based UI with smooth animations
 
-## Prerequisites
+## Quick Start for End Users
+
+**If you received Mercury-Simple.dmg**, see [INSTALLATION.md](INSTALLATION.md) for complete setup instructions.
+
+## Prerequisites for Development
 
 - Qt6 (6.5 or later) with the following modules:
   - QtCore
@@ -53,14 +57,28 @@ git clone <repository-url>
 cd answer
 ```
 
-3. Set up environment variables:
+3. Configure API keys (choose one method):
+
+#### Method A: Environment Variables (Development)
 ```bash
 cp .env.example .env
 # Edit .env and add your API keys:
 # STATISTA_MCP_ENDPOINT=https://api.statista.ai/v1/mcp
 # STATISTA_MCP_API_KEY=your_key_here
-# ANTHROPIC_API_KEY=your_claude_key_here (optional)
+# ANTHROPIC_API_KEY=your_claude_key_here
 ```
+
+#### Method B: Embedded Keys (Distribution)
+```bash
+# Copy the example configuration
+cp src/config_keys.h.example src/config_keys.h
+
+# Edit src/config_keys.h and add your keys:
+# #define TEMP_STATISTA_API_KEY "your_actual_key"
+# #define TEMP_ANTHROPIC_API_KEY "your_actual_key"
+```
+
+**Note**: `src/config_keys.h` is gitignored and will embed keys directly in the binary. This is useful for demo/distribution but should not be used for production. See `src/config_keys.h.example` for the template.
 
 ### Building
 
@@ -68,24 +86,35 @@ cp .env.example .env
 # Clean build (recommended for first build or after major changes)
 ./clean.sh
 
-# Build the application
+# Build the application (automatically loads .env for API keys)
 ./build.sh
 
-# Or manually:
-mkdir build && cd build
-cmake ..
-cmake --build . -j$(sysctl -n hw.ncpu)
+# The app is built as Mercury.app in the build directory
 ```
 
 ### Running
 
 ```bash
-# Using the run script
-./run.sh
+# Run directly from build directory
+open build/Mercury.app
 
-# Or directly
-./build/MicroBrowser
+# Or via command line
+./build/Mercury.app/Contents/MacOS/Mercury
 ```
+
+### Creating Distribution DMG
+
+```bash
+# 1. Ensure API keys are embedded (see Installation section)
+# 2. Sign the app
+codesign --force --deep --sign - build/Mercury.app
+
+# 3. Create DMG
+./create_dmg_simple.sh
+# Output: build/Mercury-Simple.dmg (2.3MB)
+```
+
+**Note**: The DMG requires Qt6 to be installed via Homebrew on the target machine.
 
 ## Usage
 
@@ -192,6 +221,22 @@ The `build.sh` script automatically:
 - Sets up parallel compilation based on CPU cores
 - Configures Qt paths
 - Handles debug/release builds
+
+## macOS Distribution
+
+To package Mercury for distribution to other Mac users:
+
+```bash
+# Run the packaging script
+./distribution/package_macos.sh
+
+# Select option 3 for full build, sign, and notarize
+# This creates Mercury-1.0.0.dmg ready for distribution
+```
+
+The packaged app includes embedded API keys (if configured) and requires no additional setup for end users.
+
+See [DOCUMENTATION.md](DOCUMENTATION.md) for detailed distribution instructions including code signing and notarization.
 
 ## Troubleshooting
 

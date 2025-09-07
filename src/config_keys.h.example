@@ -1,0 +1,27 @@
+// Example configuration file for API keys
+// 
+// To use embedded API keys in the application:
+// 1. Copy this file to src/config_keys.h
+// 2. Replace the empty strings with your actual API keys
+// 3. Build the application
+//
+// IMPORTANT: src/config_keys.h is gitignored and should NEVER be committed
+// This is only for temporary/demo purposes. Production apps should use
+// secure storage like macOS Keychain or user-configurable settings.
+
+#ifndef CONFIG_KEYS_H
+#define CONFIG_KEYS_H
+
+// Your Statista MCP API key
+// Get this from your Statista developer account
+#define TEMP_STATISTA_API_KEY ""
+
+// Your Anthropic Claude API key  
+// Get this from https://console.anthropic.com/
+#define TEMP_ANTHROPIC_API_KEY ""
+
+// Example with keys (DO NOT USE REAL KEYS IN EXAMPLE):
+// #define TEMP_STATISTA_API_KEY "sta_1234567890abcdef"
+// #define TEMP_ANTHROPIC_API_KEY "sk-ant-api03-xxxxxxxxxxxxx"
+
+#endif // CONFIG_KEYS_H

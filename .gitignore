@@ -2,6 +2,9 @@
 .env
 .env.local
 
+# API Keys - NEVER COMMIT
+src/config_keys.h
+
 # Build directories
 build/
 build-debug/

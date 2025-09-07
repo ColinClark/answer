@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <!-- Required for WebEngine/Chromium JIT compilation -->
+    <key>com.apple.security.cs.allow-jit</key>
+    <true/>
+    
+    <!-- Required for WebEngine memory management -->
+    <key>com.apple.security.cs.allow-unsigned-executable-memory</key>
+    <true/>
+    
+    <!-- Required for loading Qt frameworks and plugins -->
+    <key>com.apple.security.cs.disable-library-validation</key>
+    <true/>
+    
+    <!-- Network access for API calls and web browsing -->
+    <key>com.apple.security.network.client</key>
+    <true/>
+    
+    <!-- Local server for WebEngine DevTools -->
+    <key>com.apple.security.network.server</key>
+    <true/>
+    
+    <!-- File system access for downloads and session storage -->
+    <key>com.apple.security.files.user-selected.read-write</key>
+    <true/>
+    
+    <!-- Camera/microphone access if needed for web pages -->
+    <key>com.apple.security.device.camera</key>
+    <false/>
+    <key>com.apple.security.device.microphone</key>
+    <false/>
+</dict>
+</plist>

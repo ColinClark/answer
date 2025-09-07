@@ -50,6 +50,27 @@ qt_add_executable(MicroBrowserApp
     src/chatbridge.cpp
 )
 
+# Set macOS specific properties
+if(APPLE)
+    set_target_properties(MicroBrowserApp PROPERTIES
+        MACOSX_BUNDLE TRUE
+        MACOSX_BUNDLE_INFO_PLIST ${CMAKE_SOURCE_DIR}/resources/Info.plist
+        MACOSX_BUNDLE_BUNDLE_NAME "Mercury"
+        MACOSX_BUNDLE_BUNDLE_VERSION "1.0.0"
+        MACOSX_BUNDLE_SHORT_VERSION_STRING "1.0.0"
+        OUTPUT_NAME "Mercury"
+    )
+    
+    # Copy icon file to bundle
+    set(APP_ICON_MACOS "${CMAKE_SOURCE_DIR}/resources/icons/AppIcon.icns")
+    if(EXISTS ${APP_ICON_MACOS})
+        set_source_files_properties(${APP_ICON_MACOS} PROPERTIES
+            MACOSX_PACKAGE_LOCATION "Resources"
+        )
+        target_sources(MicroBrowserApp PRIVATE ${APP_ICON_MACOS})
+    endif()
+endif()
+
 qt_add_qml_module(MicroBrowserApp
     URI MicroBrowser
     VERSION 1.0
@@ -67,5 +88,5 @@ target_link_libraries(MicroBrowserApp
         Qt6::Network
 )
 
-# Create a nicer output name
-set_target_properties(MicroBrowserApp PROPERTIES OUTPUT_NAME answer)
+# Create a nicer output name (using Mercury for consistency)
+set_target_properties(MicroBrowserApp PROPERTIES OUTPUT_NAME Mercury)
