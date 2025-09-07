@@ -14,6 +14,9 @@ Item {
     signal send(string text)
     signal openCitation(string url)
     signal runNextFollowup()
+    
+    // Dynamic width calculation
+    property real availableWidth: width
 
     Rectangle {
         anchors.fill: parent
@@ -24,6 +27,7 @@ Item {
     }
 
     ColumnLayout {
+        id: mainLayout
         anchors.fill: parent
         anchors.margins: 16
         spacing: 12
@@ -71,8 +75,10 @@ Item {
             Layout.fillWidth: true
             Layout.fillHeight: true
             clip: true
+            contentWidth: availableWidth
             
             Column {
+                id: messagesColumn
                 width: parent.width
                 spacing: 16
                 
@@ -85,10 +91,14 @@ Item {
                         
                         Rectangle {
                             id: messageRect
-                            // Assistant messages always use 95% width, user messages use up to 80%
-                            width: m.role === "assistant" 
-                                   ? parent.width * 0.95
-                                   : Math.min(parent.width * 0.8, contentColumn.implicitWidth + 32)
+                            property real maxWidth: Math.min(parent.width - 40, 1200)
+                            width: {
+                                if (m.role === "assistant") {
+                                    return maxWidth * 0.9
+                                } else {
+                                    return Math.min(maxWidth * 0.7, contentColumn.implicitWidth + 32)
+                                }
+                            }
                             height: contentColumn.implicitHeight + 24
                             radius: 16
                             
