@@ -1,5 +1,6 @@
 import QtQuick
 import QtWebEngine
+import QtQuick.Controls
 
 Item {
     id: root
@@ -10,6 +11,7 @@ Item {
     property alias profile: view.profile
     signal newTabRequested(url u)
     signal loadingChanged(var loadingInfo)
+    signal sendSelectionToChat(string text)
 
     WebEngineView {
         id: view
@@ -31,6 +33,43 @@ Item {
         
         onLoadingChanged: (loadingInfo) => {
             root.loadingChanged(loadingInfo)
+        }
+        
+        onContextMenuRequested: (request) => {
+            // Get selected text first
+            view.runJavaScript("window.getSelection().toString()", (selectedText) => {
+                if (selectedText && selectedText.trim().length > 0) {
+                    // Add our custom menu item only if there's selected text
+                    request.accepted = true
+                    contextMenu.selectedText = selectedText
+                    contextMenu.x = request.position.x
+                    contextMenu.y = request.position.y
+                    contextMenu.open()
+                }
+            })
+        }
+    }
+    
+    Menu {
+        id: contextMenu
+        property string selectedText: ""
+        
+        MenuItem {
+            text: "Ask Statista!"
+            onTriggered: {
+                if (contextMenu.selectedText) {
+                    root.sendSelectionToChat(contextMenu.selectedText)
+                }
+            }
+        }
+        
+        MenuSeparator {}
+        
+        MenuItem {
+            text: "Copy"
+            onTriggered: {
+                view.triggerWebAction(WebEngineView.Copy)
+            }
         }
     }
 

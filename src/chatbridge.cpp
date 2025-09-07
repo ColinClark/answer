@@ -115,10 +115,26 @@ void ChatBridge::sendMessage(const QString& userText, const QVariantMap& context
         return; 
     }
     
-    append("user", userText);
+    // Make the displayed user message more friendly if it's a follow-up query
+    QString displayText = userText;
+    if (userText.startsWith("Search for statistics about")) {
+        // Convert "Search for statistics about X" to "Ok, searching for statistics on X"
+        QString topic = userText.mid(QString("Search for statistics about").length()).trimmed();
+        if (!topic.isEmpty()) {
+            displayText = QString("Ok, searching for statistics on %1").arg(topic);
+        }
+    } else if (userText.startsWith("Tell me about statistics related to")) {
+        // Convert "Tell me about statistics related to X" to "Ok, searching for statistics on X"  
+        QString topic = userText.mid(QString("Tell me about statistics related to").length()).trimmed();
+        if (!topic.isEmpty()) {
+            displayText = QString("Ok, searching for statistics on %1").arg(topic);
+        }
+    }
+    
+    append("user", displayText);
     // Don't create assistant message here - it will be created when streaming starts
     
-    // Call Claude API for chat response
+    // Call Claude API for chat response (with original text)
     sendToClaudeAPI(userText, context);
 }
 
