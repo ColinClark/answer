@@ -8,6 +8,7 @@ Item {
     property url initialUrl: "https://example.com"
     property alias profile: view.profile
     signal newTabRequested(url u)
+    signal loadingChanged(var loadingInfo)
 
     WebEngineView {
         id: view
@@ -22,6 +23,10 @@ Item {
             if (request.userInitiated) {
                 root.newTabRequested(request.requestedUrl);
             }
+        }
+        
+        onLoadingChanged: (loadingInfo) => {
+            root.loadingChanged(loadingInfo)
         }
     }
 

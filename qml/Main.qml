@@ -177,13 +177,20 @@ Window {
                 onUrlChanged: {
                     if (tabBar.currentIndex === tabIndex) {
                         urlField.text = url.toString();
-                        // Auto-update themes if enabled and panel is visible
-                        if (insightsPanelVisible && insightContent.autoUpdate) {
-                            refreshInsights()
-                        }
                     }
                     if (tabIndex >= 0 && tabIndex < tabsModel.count) {
                         tabsModel.setProperty(tabIndex, "url", url.toString());
+                    }
+                }
+                
+                onLoadingChanged: (loadingInfo) => {
+                    // Extract themes when page finishes loading
+                    if (tabBar.currentIndex === tabIndex && 
+                        loadingInfo.status === WebEngineView.LoadSucceededStatus &&
+                        insightsPanelVisible && 
+                        insightContent.autoUpdate) {
+                        // Small delay to ensure content is rendered
+                        Qt.callLater(refreshInsights)
                     }
                 }
                 
@@ -257,10 +264,19 @@ Window {
 
     function refreshInsights() {
         let v = currentView()
-        if (!v) return
+        if (!v) {
+            insightContent.setLoading(false)
+            return
+        }
         v.extractVisibleText((txt) => {
-            insightContent.setLoading(true)
-            analyzer.analyzeTextLLM(txt)
+            // Only show loading if there's actual text to analyze
+            if (txt && txt.trim().length > 50) {
+                insightContent.setLoading(true)
+                analyzer.analyzeTextLLM(txt)
+            } else {
+                // Clear themes for pages with no/little content
+                insightContent.setThemes([])
+            }
         })
     }
 

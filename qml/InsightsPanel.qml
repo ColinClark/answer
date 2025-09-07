@@ -8,7 +8,7 @@ Item {
     property bool loading: false
     property var themes: []
     property var items: []      // array of { title, url, summary }
-    property bool autoUpdate: false
+    property bool autoUpdate: true
 
     // Chat state
     property var chatMessages: []   // [{role, content, citations?:[] }]
@@ -107,10 +107,20 @@ Item {
                     }
                 }
                 
-                Label { 
-                    visible: themes.length === 0
-                    text: loading ? "Extracting…" : "No themes yet"
+                Rectangle {
+                    visible: loading
                     anchors.centerIn: parent
+                    width: extractingLabel.width + 24
+                    height: extractingLabel.height + 12
+                    radius: 6
+                    color: "#80808080"  // 50% opaque gray
+                    
+                    Label { 
+                        id: extractingLabel
+                        text: "Extracting…"
+                        anchors.centerIn: parent
+                        color: "white"
+                    }
                 }
             }
         }

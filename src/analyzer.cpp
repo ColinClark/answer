@@ -102,6 +102,13 @@ void Analyzer::analyzeTextFast(const QString& text) {
 }
 
 void Analyzer::analyzeTextLLM(const QString& text) {
+    // Skip analysis if text is empty or too short
+    if (text.trimmed().isEmpty() || text.trimmed().length() < 50) {
+        qDebug() << "Analyzer: Text too short or empty, skipping analysis";
+        emit themesReady(QStringList());  // Emit empty themes list
+        return;
+    }
+    
     // Use Anthropic Claude to extract themes from the text
     if (m_anthropicApiKey.isEmpty()) {
         qDebug() << "Analyzer: No Anthropic API key configured, falling back to naive extraction";
