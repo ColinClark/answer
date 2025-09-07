@@ -163,19 +163,29 @@ void ChatBridge::sendToClaudeAPI(const QString& userText, const QVariantMap& con
                            userText.toLower().contains("data") ||
                            userText.toLower().contains("tell me about");
     
-    QString systemPrompt = "You are a helpful research assistant integrated into a web browser application. "
-        "Your role is to provide insightful statistical analysis and data-driven answers to help users understand topics they're researching online.\n\n"
-        "When users ask about statistics, trends, or data:\n"
-        "1. Use the search-statistics tool to find relevant data (usually just one search is enough)\n"
-        "2. After getting results, synthesize and present the findings conversationally\n"
-        "3. Do not repeatedly search unless the user asks for more information\n\n"
-        "Focus on being helpful and conversational. One tool use is usually sufficient to answer most questions.";
+    QString systemPrompt = "You are a research assistant with access to the Statista database integrated into a web browser. "
+        "You help users by providing data-driven, factual answers augmented with statistical evidence.\n\n"
+        "CRITICAL INSTRUCTIONS - Follow this workflow:\n"
+        "1. ANALYZE the user's question to determine what data is needed\n"
+        "2. SEARCH using search-statistics tool for relevant data (this is MANDATORY for any factual question)\n"
+        "3. EVALUATE the search results:\n"
+        "   - If results directly answer the question with sufficient detail → STOP and answer\n"
+        "   - If you need specific numbers/trends from a chart → use get-chart-data-by-id for the TOP 1-2 most relevant results\n"
+        "   - If results are not relevant → try ONE more search with different keywords\n"
+        "4. STOP gathering data once you have enough to answer the question comprehensively\n\n"
+        "IMPORTANT GUIDELINES:\n"
+        "• Do NOT make multiple searches unless the first had no relevant results\n"
+        "• Do NOT fetch chart details for more than 2 charts per query\n"
+        "• Do NOT continue searching if you already have data that answers the question\n"
+        "• The system will automatically display citation buttons for all sources used\n"
+        "• Focus on quality over quantity - better to have 1-2 highly relevant sources than 10 tangential ones\n\n"
+        "Remember: You are a ReAct agent - Reason about what's needed, Act to get it, then STOP when you have enough.";
     
     // Define available tools for Claude
     QJsonArray tools;
     tools.append(QJsonObject{
         {"name", "search-statistics"},
-        {"description", "Search Statista database for statistics on any topic"},
+        {"description", "Search Statista database for statistics on a topic. Returns up to 10 results with titles, summaries, and IDs. Use ONCE per query unless first search completely failed. Evaluate results before searching again."},
         {"input_schema", QJsonObject{
             {"type", "object"},
             {"properties", QJsonObject{
@@ -195,7 +205,7 @@ void ChatBridge::sendToClaudeAPI(const QString& userText, const QVariantMap& con
     
     tools.append(QJsonObject{
         {"name", "get-chart-data-by-id"},
-        {"description", "Get detailed data for a specific Statista chart by its ID"},
+        {"description", "Get detailed data points and methodology for a specific Statista chart. Use ONLY when search results lack specific numbers you need. Maximum 2 chart fetches per query. Only fetch if the summary doesn't have enough detail."},
         {"input_schema", QJsonObject{
             {"type", "object"},
             {"properties", QJsonObject{
@@ -303,8 +313,25 @@ void ChatBridge::processClaudeStream() {
             if (jsonData == "[DONE]") {
                 qDebug() << "ChatBridge: Stream complete";
                 
-                // Citations are now handled via citationsUpdated signal and shown as buttons
-                // Don't append them as text to the message
+                // Append citations to the message if we have any
+                if (!m_currentCitations.isEmpty() && !m_messages.isEmpty()) {
+                    auto last = m_messages.last().toMap();
+                    if (last["role"].toString() == "assistant") {
+                        QString content = last["content"].toString();
+                        
+                        // Add citations as clickable links at the end
+                        content += "\n\n**Sources:**\n";
+                        for (const auto& cite : m_currentCitations) {
+                            QString title = cite["title"].toString();
+                            QString url = cite["url"].toString();
+                            content += QString("- [%1](%2)\n").arg(title, url);
+                        }
+                        
+                        last["content"] = content;
+                        m_messages[m_messages.size()-1] = last;
+                        emit messagesChanged();
+                    }
+                }
                 
                 emit streamingFinished();
                 emit messagesChanged();
@@ -392,6 +419,26 @@ void ChatBridge::processClaudeStream() {
                         // The citations have already been emitted via citationsUpdated signal
                         if (!m_currentCitations.isEmpty()) {
                             qDebug() << "ChatBridge: Citations available:" << m_currentCitations.size() << "citations (shown as buttons)";
+                        }
+                        
+                        // Append citations to the message if we have any
+                        if (!m_currentCitations.isEmpty() && !m_messages.isEmpty()) {
+                            auto last = m_messages.last().toMap();
+                            if (last["role"].toString() == "assistant") {
+                                QString content = last["content"].toString();
+                                
+                                // Add citations as clickable links at the end
+                                content += "\n\n**Sources:**\n";
+                                for (const auto& cite : m_currentCitations) {
+                                    QString title = cite["title"].toString();
+                                    QString url = cite["url"].toString();
+                                    content += QString("- [%1](%2)\n").arg(title, url);
+                                }
+                                
+                                last["content"] = content;
+                                m_messages[m_messages.size()-1] = last;
+                                emit messagesChanged();
+                            }
                         }
                         
                         emit streamingFinished();
@@ -581,6 +628,7 @@ void ChatBridge::sendToolResult(const QString& toolId, const QJsonObject& result
                                     }
                                 }
                                 qDebug() << "ChatBridge: Extracted" << m_currentCitations.size() << "citations from tool result";
+                                // Citations will be appended to the message text when streaming completes
                             }
                         }
                     }
@@ -612,17 +660,28 @@ void ChatBridge::sendToolResult(const QString& toolId, const QJsonObject& result
     m_toolCallDetails.remove(toolId);
     
     // Create payload with tool result and send directly to Claude API
-    QString systemPrompt = "You are a helpful research assistant integrated into a web browser application. "
-        "Your role is to provide insightful statistical analysis and data-driven answers to help users understand topics they're researching online.\n\n"
-        "IMPORTANT: You have just received tool results. Now provide a complete, conversational response to the user based on the data you gathered. "
-        "Do NOT call more tools unless absolutely necessary. Synthesize what you've learned and give the user a helpful answer.\n\n"
-        "Present your findings in a clear, conversational way with the key statistics and insights from the data.";
+    QString systemPrompt = "You are a research assistant with access to the Statista database integrated into a web browser. "
+        "You help users by providing data-driven, factual answers augmented with statistical evidence.\n\n"
+        "CRITICAL: You just received tool results. Now EVALUATE:\n"
+        "1. Do you have enough data to comprehensively answer the user's question?\n"
+        "   - YES → Provide your answer now using the data you've gathered\n"
+        "   - NO → Use ONE more tool call (either get-chart-data-by-id for details OR search-statistics with better keywords)\n\n"
+        "STOPPING CRITERIA - You have enough data when:\n"
+        "• The search results contain statistics that directly address the user's question\n"
+        "• You have specific numbers, percentages, or trends relevant to the query\n"
+        "• Additional searches would only provide redundant or tangential information\n\n"
+        "IMPORTANT:\n"
+        "• Maximum 2 searches per user query (unless first search completely failed)\n"
+        "• Maximum 2 chart detail fetches per query\n"
+        "• The system displays citations automatically - don't include links\n"
+        "• If you have relevant data, STOP searching and provide the answer\n\n"
+        "Present your findings clearly and directly answer the user's question with the concrete data you've gathered.";
     
     // Define available tools for Claude
     QJsonArray tools;
     tools.append(QJsonObject{
         {"name", "search-statistics"},
-        {"description", "Search Statista database for statistics on any topic"},
+        {"description", "Search Statista database for statistics on a topic. Returns up to 10 results with titles, summaries, and IDs. Use ONCE per query unless first search completely failed. Evaluate results before searching again."},
         {"input_schema", QJsonObject{
             {"type", "object"},
             {"properties", QJsonObject{
@@ -642,7 +701,7 @@ void ChatBridge::sendToolResult(const QString& toolId, const QJsonObject& result
     
     tools.append(QJsonObject{
         {"name", "get-chart-data-by-id"},
-        {"description", "Get detailed data for a specific Statista chart by its ID"},
+        {"description", "Get detailed data points and methodology for a specific Statista chart. Use ONLY when search results lack specific numbers you need. Maximum 2 chart fetches per query. Only fetch if the summary doesn't have enough detail."},
         {"input_schema", QJsonObject{
             {"type", "object"},
             {"properties", QJsonObject{

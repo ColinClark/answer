@@ -5,9 +5,8 @@ import QtQuick.Effects
 
 Item {
     id: root
-    property var messages: [] // [{role:"user"|"assistant", content:string, citations?:[] }]
+    property var messages: [] // [{role:"user"|"assistant", content:string}]
     property string errorText: ""
-    property var citations: [] // global citations for current answer
     property var followups: [] // [{query}]
     property string streamingContent: "" // Content being streamed for the last message
     property bool isStreaming: false
@@ -210,92 +209,6 @@ Item {
             }
         }
 
-        // Enhanced Citations Section
-        Rectangle {
-            Layout.fillWidth: true
-            visible: citations.length > 0
-            height: citationsFlow.height + 24
-            radius: 12
-            color: "#ffffff"
-            border.width: 1
-            border.color: "#e2e8f0"
-            
-            ColumnLayout {
-                anchors.fill: parent
-                anchors.margins: 16
-                spacing: 12
-                
-                RowLayout {
-                    Layout.fillWidth: true
-                    
-                    Rectangle {
-                        width: 24
-                        height: 24
-                        radius: 12
-                        color: "#0ea5e9"
-                        
-                        Text {
-                            anchors.centerIn: parent
-                            text: "📊"
-                            font.pixelSize: 12
-                        }
-                    }
-                    
-                    Text {
-                        text: "Statista Sources"
-                        font.pixelSize: 14
-                        font.weight: Font.Medium
-                        color: "#1e293b"
-                    }
-                    
-                    Rectangle {
-                        Layout.fillWidth: true
-                        height: 1
-                        color: "#e2e8f0"
-                    }
-                }
-                
-                Flow {
-                    id: citationsFlow
-                    Layout.fillWidth: true
-                    spacing: 8
-                    
-                    Repeater {
-                        model: citations.length
-                        
-                        Rectangle {
-                            width: citationText.implicitWidth + 24
-                            height: 36
-                            radius: 18
-                            gradient: Gradient {
-                                GradientStop { position: 0.0; color: "#0ea5e9" }
-                                GradientStop { position: 1.0; color: "#0284c7" }
-                            }
-                            
-                            MouseArea {
-                                anchors.fill: parent
-                                hoverEnabled: true
-                                onClicked: root.openCitation(citations[index].url)
-                                onEntered: parent.scale = 1.05
-                                onExited: parent.scale = 1.0
-                                
-                                Behavior on scale { NumberAnimation { duration: 150 } }
-                            }
-                            
-                            Text {
-                                id: citationText
-                                anchors.centerIn: parent
-                                text: citations[index].title || "📊 Statista Source"
-                                color: "#ffffff"
-                                font.pixelSize: 12
-                                font.weight: Font.Medium
-                                elide: Text.ElideRight
-                            }
-                        }
-                    }
-                }
-            }
-        }
 
         // Enhanced Follow-up Section
         Rectangle {

@@ -82,3 +82,4 @@ Modify `ChatBridge::postStream()` if switching to SSE or different schema.
 - remember to always clean before build
 - remember to look at todo list after compaction
 - remember not to run the code - i will run the code myself for testing
+- remember to read claude.md if you need to remember how to build the app

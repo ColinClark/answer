@@ -11,9 +11,8 @@ Item {
     property bool autoUpdate: true
 
     // Chat state
-    property var chatMessages: []   // [{role, content, citations?:[] }]
+    property var chatMessages: []   // [{role, content}]
     property string chatError: ""
-    property var citations: []      // [{title,url}]
     property var followups: []      // [{query}]
 
     signal autoUpdateToggled(bool enabled)
@@ -27,9 +26,7 @@ Item {
     function setItems(x) { items = x; loading = false }
     function setChatMessages(m) { chatMessages = m }
     function setChatError(e) { chatError = e }
-    function addCitations(c) { citations = citations.concat(c) }
     function setFollowups(f) { followups = f }
-    function clearCitations() { citations = [] }
     function updateLastMessage(m) { 
         // Update streaming content for smooth display
         if (m.length > 0) {
@@ -127,7 +124,6 @@ Item {
                 anchors.fill: parent
                 messages: root.chatMessages
                 errorText: root.chatError
-                citations: root.citations
                 followups: root.followups
                 onSend: (txt) => root.askChat(txt)
                 onOpenCitation: (url) => {

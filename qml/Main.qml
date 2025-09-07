@@ -38,7 +38,6 @@ Window {
         chat.messagesChanged.connect(() => insightContent.setChatMessages(chat.messages))
         chat.partialUpdated.connect(() => insightContent.updateLastMessage(chat.messages))
         chat.streamingFinished.connect(() => insightContent.finishStreaming(chat.messages))
-        chat.citationsUpdated.connect((cites) => insightContent.addCitations(cites))
         chat.followupsChanged.connect(() => insightContent.setFollowups(chat.followups))
         chat.error.connect((m) => insightContent.setChatError(m))
         
@@ -191,8 +190,7 @@ Window {
                     }
                 }
                 onAskChat: (text) => {
-                    // Clear citations from previous messages before starting new one
-                    insightContent.clearCitations()
+                    // Citations will be cleared by ChatBridge when sending a new message
                     
                     // For theme clicks, this receives "Search for statistics about: [theme]"
                     // Just send it to chat as-is with the context
@@ -266,8 +264,7 @@ Window {
                 onNewTabRequested: (u) => addTab(u.toString())
                 
                 onSendSelectionToChat: (text) => {
-                    // Clear citations from previous messages
-                    insightContent.clearCitations()
+                    // Citations will be cleared by ChatBridge when sending a new message
                     
                     // Do EXACTLY what theme clicks do:
                     // 1. Call analyzer.searchTheme (like onThemeClicked does)
