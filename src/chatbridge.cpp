@@ -45,7 +45,9 @@ void ChatBridge::setAnthropicApiKey(const QString& k) {
 }
 
 void ChatBridge::reset() {
-    if (m_reply) { m_reply->abort(); m_reply->deleteLater(); m_reply = nullptr; }
+    // Don't abort - let pending requests finish naturally
+    // They'll be ignored since we're resetting state
+    m_reply = nullptr;
     m_messages.clear();
     m_followups.clear();
     emit messagesChanged();
@@ -189,7 +191,7 @@ void ChatBridge::sendToClaudeAPI(const QString& userText, const QVariantMap& con
         {"input_schema", QJsonObject{
             {"type", "object"},
             {"properties", QJsonObject{
-                {"question", QJsonObject{
+                {"query", QJsonObject{
                     {"type", "string"},
                     {"description", "The search query for statistics"}
                 }},
@@ -199,7 +201,7 @@ void ChatBridge::sendToClaudeAPI(const QString& userText, const QVariantMap& con
                     {"default", 10}
                 }}
             }},
-            {"required", QJsonArray{"question"}}
+            {"required", QJsonArray{"query"}}
         }}
     });
     
@@ -240,24 +242,29 @@ void ChatBridge::sendToClaudeAPI(const QString& userText, const QVariantMap& con
     
     m_reply = m_net.post(req, QJsonDocument(payload).toJson());
     m_buffer.clear();
-    
+
     qDebug() << "ChatBridge: Request sent, waiting for response...";
-    
-    QObject::connect(m_reply, &QNetworkReply::readyRead, this, [this](){
-        auto data = m_reply->readAll();
+
+    // Capture reply as QPointer to safely detect deleted objects
+    QPointer<QNetworkReply> reply = m_reply;
+
+    QObject::connect(m_reply.data(), &QNetworkReply::readyRead, this, [this, reply](){
+        if (reply.isNull()) return;
+        auto data = reply->readAll();
         qDebug() << "ChatBridge: Received data chunk, size:" << data.size();
         m_buffer += data;
         processClaudeStream();
     });
-    
-    QObject::connect(m_reply, &QNetworkReply::finished, this, [this](){
+
+    QObject::connect(m_reply.data(), &QNetworkReply::finished, this, [this, reply](){
+        if (reply.isNull()) return;
         qDebug() << "ChatBridge: Request finished";
-        if (m_reply->error() != QNetworkReply::NoError) {
-            qDebug() << "ChatBridge: Claude API error:" << m_reply->errorString();
-            qDebug() << "ChatBridge: HTTP status:" << m_reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt();
-            
+        if (reply->error() != QNetworkReply::NoError) {
+            qDebug() << "ChatBridge: Claude API error:" << reply->errorString();
+            qDebug() << "ChatBridge: HTTP status:" << reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt();
+
             // Read the error response to see what went wrong
-            auto errorData = m_reply->readAll();
+            auto errorData = reply->readAll();
             qDebug() << "ChatBridge: Error response size:" << errorData.size();
             if (!errorData.isEmpty()) {
                 qDebug() << "ChatBridge: Error response body:" << errorData;
@@ -273,15 +280,14 @@ void ChatBridge::sendToClaudeAPI(const QString& userText, const QVariantMap& con
                     updateLastAssistant("Error: " + errorMsg);
                 }
             }
-            emit error(QString("API error: %1").arg(m_reply->errorString()));
+            emit error(QString("API error: %1").arg(reply->errorString()));
         } else {
             // Process any remaining data on successful completion
             if (!m_buffer.isEmpty()) {
                 processClaudeStream();
             }
         }
-        m_reply->deleteLater();
-        m_reply = nullptr;
+        reply->deleteLater();
     });
 }
 
@@ -685,7 +691,7 @@ void ChatBridge::sendToolResult(const QString& toolId, const QJsonObject& result
         {"input_schema", QJsonObject{
             {"type", "object"},
             {"properties", QJsonObject{
-                {"question", QJsonObject{
+                {"query", QJsonObject{
                     {"type", "string"},
                     {"description", "The search query for statistics"}
                 }},
@@ -695,7 +701,7 @@ void ChatBridge::sendToolResult(const QString& toolId, const QJsonObject& result
                     {"default", 10}
                 }}
             }},
-            {"required", QJsonArray{"question"}}
+            {"required", QJsonArray{"query"}}
         }}
     });
     
@@ -740,7 +746,9 @@ void ChatBridge::runFollowupQueue(const QVariantMap& context) {
 }
 
 void ChatBridge::postStream(const QJsonObject& payload) {
-    if (m_reply) { m_reply->abort(); m_reply->deleteLater(); m_reply = nullptr; }
+    // Don't abort old requests - let them finish naturally
+    // Just clear our reference to allow new request
+    m_reply = nullptr;
     
     qDebug() << "ChatBridge: Posting to" << m_endpoint;
     qDebug() << "ChatBridge: API key present:" << !m_apiKey.isEmpty();
@@ -759,17 +767,22 @@ void ChatBridge::postStream(const QJsonObject& payload) {
     req.setAttribute(QNetworkRequest::RedirectPolicyAttribute, QNetworkRequest::NoLessSafeRedirectPolicy);
 
     m_reply = m_net.post(req, QJsonDocument(payload).toJson());
-    
+
+    // Capture reply as QPointer to safely detect deleted objects
+    QPointer<QNetworkReply> reply = m_reply;
+
     // Extract session ID from response headers if present (for streaming responses)
-    QObject::connect(m_reply, &QNetworkReply::metaDataChanged, this, [this](){
-        if (!m_sessionInitialized && m_reply->hasRawHeader("mcp-session-id")) {
-            m_sessionId = QString::fromUtf8(m_reply->rawHeader("mcp-session-id"));
+    QObject::connect(m_reply.data(), &QNetworkReply::metaDataChanged, this, [this, reply](){
+        if (reply.isNull()) return;
+        if (!m_sessionInitialized && reply->hasRawHeader("mcp-session-id")) {
+            m_sessionId = QString::fromUtf8(reply->rawHeader("mcp-session-id"));
             qDebug() << "ChatBridge: Got session ID from server:" << m_sessionId;
         }
     });
-    
-    QObject::connect(m_reply, &QNetworkReply::readyRead, this, [this](){
-        m_buffer += m_reply->readAll();
+
+    QObject::connect(m_reply.data(), &QNetworkReply::readyRead, this, [this, reply](){
+        if (reply.isNull()) return;
+        m_buffer += reply->readAll();
         qDebug() << "ChatBridge: Received data chunk, buffer size:" << m_buffer.size();
         
         // Parse NDJSON lines; each line is a JSON object like:
@@ -812,24 +825,24 @@ void ChatBridge::postStream(const QJsonObject& payload) {
             }
         }
     });
-    QObject::connect(m_reply, &QNetworkReply::finished, this, [this](){
-        if (m_reply->error() != QNetworkReply::NoError) {
-            qDebug() << "ChatBridge: Network error:" << m_reply->error() << m_reply->errorString();
-            qDebug() << "ChatBridge: HTTP status:" << m_reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt();
-            
+    QObject::connect(m_reply.data(), &QNetworkReply::finished, this, [this, reply](){
+        if (reply.isNull()) return;
+        if (reply->error() != QNetworkReply::NoError) {
+            qDebug() << "ChatBridge: Network error:" << reply->error() << reply->errorString();
+            qDebug() << "ChatBridge: HTTP status:" << reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt();
+
             // Try to read any error response from Claude API
-            auto errorData = m_reply->readAll();
+            auto errorData = reply->readAll();
             if (!errorData.isEmpty()) {
                 qDebug() << "ChatBridge: Claude API error response (first 1000 chars):" << errorData.left(1000);
                 qDebug() << "ChatBridge: Full error response length:" << errorData.length();
             } else {
                 qDebug() << "ChatBridge: No error response body from Claude API";
             }
-            
-            emit error(QString("Network error: %1").arg(m_reply->errorString()));
+
+            emit error(QString("Network error: %1").arg(reply->errorString()));
         }
-        m_reply->deleteLater();
-        m_reply = nullptr;
+        reply->deleteLater();
     });
 }
 void ChatBridge::setAnalyzer(QObject* analyzer) {
@@ -925,8 +938,10 @@ void ChatBridge::onToolResult(const QString& requestId, const QJsonObject& resul
 }
 
 void ChatBridge::postToClaudeAPI(const QJsonObject& payload) {
-    if (m_reply) { m_reply->abort(); m_reply->deleteLater(); m_reply = nullptr; }
-    
+    // Don't abort old requests - let them finish naturally
+    // Just clear our reference to allow new request
+    m_reply = nullptr;
+
     QString claudeEndpoint = "https://api.anthropic.com/v1/messages";
     qDebug() << "ChatBridge: API URL:" << claudeEndpoint;
     qDebug() << "ChatBridge: Anthropic API key present:" << !m_anthropicApiKey.isEmpty();
@@ -941,19 +956,23 @@ void ChatBridge::postToClaudeAPI(const QJsonObject& payload) {
     
     qDebug() << "ChatBridge: Request sent, waiting for response...";
     m_reply = m_net.post(req, QJsonDocument(payload).toJson());
-    
-    QObject::connect(m_reply, &QNetworkReply::readyRead, this, [this](){
-        m_buffer += m_reply->readAll();
+
+    // Capture reply as QPointer to safely detect deleted objects
+    QPointer<QNetworkReply> reply = m_reply;
+    QObject::connect(m_reply.data(), &QNetworkReply::readyRead, this, [this, reply](){
+        if (reply.isNull()) return;
+        m_buffer += reply->readAll();
         qDebug() << "ChatBridge: Received data chunk, size:" << m_buffer.size();
-        
+
         processClaudeStream();
     });
-    
-    QObject::connect(m_reply, &QNetworkReply::finished, this, [this](){
+
+    QObject::connect(m_reply.data(), &QNetworkReply::finished, this, [this, reply](){
+        if (reply.isNull()) return;
         qDebug() << "ChatBridge: Request finished";
-        if (m_reply->error() != QNetworkReply::NoError) {
-            qDebug() << "ChatBridge: Network error:" << m_reply->error() << m_reply->errorString();
-            qDebug() << "ChatBridge: HTTP status:" << m_reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt();
+        if (reply->error() != QNetworkReply::NoError) {
+            qDebug() << "ChatBridge: Network error:" << reply->error() << reply->errorString();
+            qDebug() << "ChatBridge: HTTP status:" << reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt();
         }
         processClaudeStream();
     });

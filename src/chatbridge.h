@@ -3,6 +3,7 @@
 #include <QVariantList>
 #include <QNetworkAccessManager>
 #include <QNetworkReply>
+#include <QPointer>
 
 // Streaming ChatBridge: supports incremental tokens, citations with "open in new tab",
 // and a queue of follow-up queries.
@@ -72,7 +73,7 @@ private:
     QVariantList m_followups;
     QList<QVariantMap> m_currentCitations;
     QByteArray m_buffer;
-    QNetworkReply* m_reply{nullptr};
+    QPointer<QNetworkReply> m_reply;
     
     // Tool use tracking
     QString m_currentToolName;

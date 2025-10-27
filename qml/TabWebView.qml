@@ -36,11 +36,12 @@ Item {
         }
         
         onContextMenuRequested: (request) => {
-            // Get selected text first
+            // Accept the request immediately to prevent default menu
+            request.accepted = true
+
+            // Get selected text
             view.runJavaScript("window.getSelection().toString()", (selectedText) => {
                 if (selectedText && selectedText.trim().length > 0) {
-                    // Add our custom menu item only if there's selected text
-                    request.accepted = true
                     contextMenu.selectedText = selectedText
                     contextMenu.x = request.position.x
                     contextMenu.y = request.position.y
@@ -53,22 +54,29 @@ Item {
     Menu {
         id: contextMenu
         property string selectedText: ""
-        
+        closePolicy: Popup.CloseOnPressOutside | Popup.CloseOnEscape
+
         MenuItem {
             text: "Ask Statista!"
             onTriggered: {
-                if (contextMenu.selectedText) {
-                    root.sendSelectionToChat(contextMenu.selectedText)
+                // Capture text before dismissing
+                var textToSend = contextMenu.selectedText
+                // Force close the menu completely
+                contextMenu.visible = false
+                contextMenu.close()
+                if (textToSend) {
+                    root.sendSelectionToChat(textToSend)
                 }
             }
         }
-        
+
         MenuSeparator {}
-        
+
         MenuItem {
             text: "Copy"
             onTriggered: {
                 view.triggerWebAction(WebEngineView.Copy)
+                contextMenu.close()
             }
         }
     }

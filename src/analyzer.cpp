@@ -252,7 +252,7 @@ void Analyzer::searchStatista(const QStringList& themes) {
         {"params", QJsonObject{
             {"name", "search-statistics"},
             {"arguments", QJsonObject{
-                {"question", themes.join(" ")},  // Statista expects 'question' not 'query'
+                {"query", themes.join(" ")},
                 {"limit", 12}
             }}
         }}
@@ -379,11 +379,13 @@ void Analyzer::postJsonRpc(const QJsonObject& payload, std::function<void(const 
 }
 
 void Analyzer::executeMCPTool(const QString& toolName, const QJsonObject& params, const QString& requestId) {
-    if (m_sessionId.isEmpty()) {
+    // Session ID is no longer required by Statista MCP server
+    // Just check that we've completed initialization
+    if (!m_sessionInitialized) {
         emit toolResult(requestId, QJsonObject{{"error", "Session not initialized"}});
         return;
     }
-    
+
     postJsonRpc({
         {"jsonrpc", "2.0"},
         {"method", "tools/call"},

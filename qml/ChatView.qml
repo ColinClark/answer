@@ -13,9 +13,19 @@ Item {
     signal send(string text)
     signal openCitation(string url)
     signal runNextFollowup()
-    
+
     // Dynamic width calculation
     property real availableWidth: width
+
+    // Auto-scroll when streaming content updates
+    onStreamingContentChanged: {
+        Qt.callLater(scrollView.scrollToBottom)
+    }
+
+    // Auto-scroll when messages change
+    onMessagesChanged: {
+        Qt.callLater(scrollView.scrollToBottom)
+    }
 
     Rectangle {
         anchors.fill: parent
@@ -71,11 +81,19 @@ Item {
         }
 
         ScrollView {
+            id: scrollView
             Layout.fillWidth: true
             Layout.fillHeight: true
             clip: true
             contentWidth: availableWidth
-            
+
+            // Auto-scroll to bottom when content changes
+            function scrollToBottom() {
+                if (scrollView.contentHeight > scrollView.height) {
+                    scrollView.contentItem.contentY = scrollView.contentHeight - scrollView.height
+                }
+            }
+
             Column {
                 id: messagesColumn
                 width: parent.width

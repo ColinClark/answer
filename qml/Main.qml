@@ -112,7 +112,7 @@ Window {
                                     }
                                     return t
                                 }
-                                color: tabBtn.checked ? "black" : "#666"
+                                color: tabBtn.checked ? "white" : "#666"
                                 elide: Text.ElideRight
                                 horizontalAlignment: Text.AlignLeft
                                 verticalAlignment: Text.AlignVCenter
@@ -153,15 +153,51 @@ Window {
 
         RowLayout {
             spacing: 6; height: 36
-            Button { text: "◀"; onClicked: { if (currentView()) currentView().goBack(); } }
-            Button { text: "▶"; onClicked: { if (currentView()) currentView().goForward(); } }
-            Button { text: "⟳"; onClicked: { if (currentView()) currentView().reload(); } }
+            Button {
+                text: "◀"
+                onClicked: { if (currentView()) currentView().goBack(); }
+                contentItem: Text {
+                    text: parent.text
+                    color: "#000000"
+                    horizontalAlignment: Text.AlignHCenter
+                    verticalAlignment: Text.AlignVCenter
+                }
+            }
+            Button {
+                text: "▶"
+                onClicked: { if (currentView()) currentView().goForward(); }
+                contentItem: Text {
+                    text: parent.text
+                    color: "#000000"
+                    horizontalAlignment: Text.AlignHCenter
+                    verticalAlignment: Text.AlignVCenter
+                }
+            }
+            Button {
+                text: "⟳"
+                onClicked: { if (currentView()) currentView().reload(); }
+                contentItem: Text {
+                    text: parent.text
+                    color: "#000000"
+                    horizontalAlignment: Text.AlignHCenter
+                    verticalAlignment: Text.AlignVCenter
+                }
+            }
 
             TextField {
                 id: urlField
                 Layout.fillWidth: true
                 placeholderText: "Enter URL or search…"
                 onAccepted: openUrl(text)
+                color: "#000000"
+                background: Rectangle {
+                    color: "#FFFFFF"
+                    border.color: "#CCCCCC"
+                    border.width: 1
+                    radius: 4
+                }
+                placeholderTextColor: "#999999"
+                selectByMouse: true
             }
             Button { text: "Go"; onClicked: openUrl(urlField.text) }
         }
