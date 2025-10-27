@@ -179,8 +179,8 @@ Item {
                                     readOnly: true
                                     textFormat: m.role === "assistant" ? TextEdit.MarkdownText : TextEdit.PlainText
                                     // Use streamingContent for the last assistant message during streaming
-                                    text: (root.isStreaming && index === messages.length - 1 && m.role === "assistant") 
-                                          ? root.streamingContent 
+                                    text: (root.isStreaming && index === messages.length - 1 && m.role === "assistant")
+                                          ? root.streamingContent
                                           : m.content
                                     wrapMode: TextEdit.Wrap
                                     color: m.role === "user" ? "#ffffff" : "#1e293b"
@@ -188,13 +188,13 @@ Item {
                                     font.family: "SF Pro Display, -apple-system, BlinkMacSystemFont, system-ui, sans-serif"
                                     background: Rectangle { color: "transparent" }
                                     selectByMouse: true
-                                    
+
                                     // Handle link clicks
                                     onLinkActivated: (link) => {
                                         console.log("Link clicked:", link)
                                         root.openCitation(link)
                                     }
-                                    
+
                                     // Custom markdown styling for assistant messages
                                     onTextChanged: {
                                         if (m.role === "assistant") {

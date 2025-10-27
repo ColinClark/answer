@@ -49,7 +49,13 @@ cd build
 
 # Configure with CMake
 echo -e "${GREEN}Configuring...${NC}"
-cmake -DCMAKE_BUILD_TYPE=Release ..
+
+# Use system clang and set ARM64 architecture for macOS
+if [[ "$OSTYPE" == "darwin"* ]]; then
+    CC=/usr/bin/clang CXX=/usr/bin/clang++ cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_OSX_ARCHITECTURES=arm64 ..
+else
+    cmake -DCMAKE_BUILD_TYPE=Release ..
+fi
 
 # Build
 echo -e "${GREEN}Building...${NC}"
@@ -58,13 +64,15 @@ cmake --build . --config Release -j${CORES}
 # Check if build succeeded
 if [ $? -eq 0 ]; then
     echo -e "${GREEN}Build successful!${NC}"
-    echo -e "Executable: ${PWD}/MicroBrowser"
-    
-    # On macOS, create app bundle if needed
+
+    # On macOS, show app bundle info
     if [[ "$OSTYPE" == "darwin"* ]]; then
-        if [ -d "MicroBrowser.app" ]; then
-            echo -e "${GREEN}App bundle created: ${PWD}/MicroBrowser.app${NC}"
+        if [ -d "Mercury.app" ]; then
+            echo -e "${GREEN}App bundle created: ${PWD}/Mercury.app${NC}"
+            echo -e "Executable: ${PWD}/Mercury.app/Contents/MacOS/Mercury"
         fi
+    else
+        echo -e "Executable: ${PWD}/Mercury"
     fi
 else
     echo -e "${RED}Build failed!${NC}"

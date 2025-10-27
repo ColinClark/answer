@@ -318,13 +318,13 @@ void ChatBridge::processClaudeStream() {
         if (!jsonData.isEmpty()) {
             if (jsonData == "[DONE]") {
                 qDebug() << "ChatBridge: Stream complete";
-                
+
                 // Append citations to the message if we have any
                 if (!m_currentCitations.isEmpty() && !m_messages.isEmpty()) {
                     auto last = m_messages.last().toMap();
                     if (last["role"].toString() == "assistant") {
                         QString content = last["content"].toString();
-                        
+
                         // Add citations as clickable links at the end
                         content += "\n\n**Sources:**\n";
                         for (const auto& cite : m_currentCitations) {
@@ -332,13 +332,13 @@ void ChatBridge::processClaudeStream() {
                             QString url = cite["url"].toString();
                             content += QString("- [%1](%2)\n").arg(title, url);
                         }
-                        
+
                         last["content"] = content;
                         m_messages[m_messages.size()-1] = last;
                         emit messagesChanged();
                     }
                 }
-                
+
                 emit streamingFinished();
                 emit messagesChanged();
                 continue;

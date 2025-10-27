@@ -51,9 +51,18 @@ cd build-debug
 
 # Configure with CMake for Debug
 echo -e "${BLUE}Configuring for Debug...${NC}"
-cmake -DCMAKE_BUILD_TYPE=Debug \
-      -DCMAKE_EXPORT_COMPILE_COMMANDS=ON \
-      ..
+
+# Use system clang and set ARM64 architecture for macOS
+if [[ "$OSTYPE" == "darwin"* ]]; then
+    CC=/usr/bin/clang CXX=/usr/bin/clang++ cmake -DCMAKE_BUILD_TYPE=Debug \
+          -DCMAKE_EXPORT_COMPILE_COMMANDS=ON \
+          -DCMAKE_OSX_ARCHITECTURES=arm64 \
+          ..
+else
+    cmake -DCMAKE_BUILD_TYPE=Debug \
+          -DCMAKE_EXPORT_COMPILE_COMMANDS=ON \
+          ..
+fi
 
 # Build
 echo -e "${BLUE}Building...${NC}"
@@ -62,7 +71,16 @@ cmake --build . --config Debug -j${CORES}
 # Check if build succeeded
 if [ $? -eq 0 ]; then
     echo -e "${GREEN}Debug build successful!${NC}"
-    echo -e "Executable: ${PWD}/MicroBrowser"
+
+    # On macOS, show app bundle info
+    if [[ "$OSTYPE" == "darwin"* ]]; then
+        if [ -d "Mercury.app" ]; then
+            echo -e "Executable: ${PWD}/Mercury.app/Contents/MacOS/Mercury"
+        fi
+    else
+        echo -e "Executable: ${PWD}/Mercury"
+    fi
+
     echo -e "${BLUE}Debug features enabled:${NC}"
     echo "  - Debug symbols"
     echo "  - WebEngine DevTools on port 9222"
@@ -74,4 +92,8 @@ else
 fi
 
 echo -e "${GREEN}Done!${NC}"
-echo -e "${YELLOW}To run: cd build-debug && ./MicroBrowser${NC}"
+if [[ "$OSTYPE" == "darwin"* ]]; then
+    echo -e "${YELLOW}To run: open build-debug/Mercury.app${NC}"
+else
+    echo -e "${YELLOW}To run: cd build-debug && ./Mercury${NC}"
+fi
